@@ -189,7 +189,9 @@ fun MarketScreen(onOpenTrade: (String) -> Unit) {
 @Composable
 private fun MarketHero(state: MarketUiState) {
     val totalAssets = state.account.totalAssets(state.marks)
-    val pnl = state.account.totalPnl(state.marks)
+    // 这里只统计「当前持仓的浮动盈亏」，不含已实现盈亏、手续费和资金费。
+    // 累计盈亏在「我的」页单独展示。
+    val pnl = state.account.totalUnrealizedPnl(state.marks)
     val pnlColor = if (pnl.signum() >= 0) CsColors.Up else CsColors.Down
 
     Surface(
