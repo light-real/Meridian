@@ -3,25 +3,19 @@ package com.tradesim.app.feature.profile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tradesim.app.core.AppConstants
+import com.tradesim.app.core.data.market.MarketDataHub
 import com.tradesim.app.core.data.repository.AccountRepository
 import com.tradesim.app.core.data.repository.AuthRepository
 import com.tradesim.app.core.data.repository.FavoritesRepository
-import com.tradesim.app.core.data.repository.MarketRepository
 import com.tradesim.app.core.data.repository.SyncState
 import com.tradesim.app.core.data.session.Session
 import com.tradesim.app.core.data.settings.SettingsStore
 import com.tradesim.app.core.model.Account
 import com.tradesim.app.core.model.MarkedPosition
-import com.tradesim.app.core.model.Ticker
 import java.math.BigDecimal
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -37,13 +31,12 @@ data class ProfileUiState(
     val loggedOut: Boolean = false,
 )
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class ProfileViewModel(
     private val authRepository: AuthRepository,
     private val accountRepository: AccountRepository,
     private val favoritesRepository: FavoritesRepository,
     private val settingsStore: SettingsStore,
-    private val marketRepository: MarketRepository,
+    private val marketDataHub: MarketDataHub,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(
@@ -81,12 +74,16 @@ class ProfileViewModel(
             }
         }
         viewModelScope.launch {
-            accountRepository.account
-                .map { account -> account.positions.map { it.symbol }.distinct() }
-                .distinctUntilChanged()
-                .flatMapLatest { symbols -> marketRepository.tickerStream(symbols) }
-                .catch { }
-                .collect { ticker -> onTicker(ticker) }
+            marketDataHub.marks.collect { marks ->
+                if (marks != _uiState.value.marks) {
+                    _uiState.update { state ->
+                        state.copy(
+                            marks = marks,
+                            positions = state.account.markedPositions(marks),
+                        )
+                    }
+                }
+            }
         }
     }
 
@@ -155,16 +152,5 @@ class ProfileViewModel(
 
     fun consumeLoggedOut() {
         _uiState.update { it.copy(loggedOut = false) }
-    }
-
-    private fun onTicker(ticker: Ticker) {
-        _uiState.update { state ->
-            val marks = state.marks + (ticker.symbol to ticker.lastPrice)
-            state.copy(
-                marks = marks,
-                positions = state.account.markedPositions(marks),
-            )
-        }
-        accountRepository.updateMarks(mapOf(ticker.symbol to ticker.lastPrice))
     }
 }

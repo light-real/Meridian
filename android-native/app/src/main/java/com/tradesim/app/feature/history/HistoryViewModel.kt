@@ -57,5 +57,6 @@ class HistoryViewModel(
             TradeTypeFilter.CLOSE -> trades.filter {
                 it.type == TradeType.CLOSE || it.type == TradeType.LIQUIDATION
             }
+            TradeTypeFilter.FUNDING -> trades.filter { it.type == TradeType.FUNDING }
         }
 }

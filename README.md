@@ -199,18 +199,21 @@ cd android-native
 
 # Windows
 gradlew.bat assembleDebug
+gradlew.bat assemblePerf
 gradlew.bat test
 gradlew.bat assembleRelease
 
 # macOS / Linux
 ./gradlew assembleDebug
+./gradlew assemblePerf
 ./gradlew test
 ./gradlew assembleRelease
 ```
 
 产物：
 
-- Debug：`app/build/outputs/apk/debug/app-debug.apk`
+- Debug：`app/build/outputs/apk/debug/app-debug.apk`（可调试，但 Compose 帧耗时明显更高）
+- Perf：`app/build/outputs/apk/perf/app-perf.apk`（与 Debug 同包名、同签名，可直接覆盖安装并保留数据；非 debuggable，日常使用和测流畅度装这个）
 - Release：`app/build/outputs/apk/release/app-release.apk`
 
 ### 签名

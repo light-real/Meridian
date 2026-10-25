@@ -4,7 +4,7 @@ import com.tradesim.app.core.data.AppException
 import com.tradesim.app.core.data.network.BinanceApi
 import com.tradesim.app.core.data.network.BinanceStreamClient
 import com.tradesim.app.core.data.network.HttpException
-import com.tradesim.app.core.model.Kline
+import com.tradesim.app.core.model.FundingRate
 import com.tradesim.app.core.model.SymbolInfo
 import com.tradesim.app.core.model.Ticker
 import java.io.IOException
@@ -23,17 +23,14 @@ class MarketRepository(
     suspend fun ticker(symbol: String): Ticker? =
         safe { api.ticker(symbol) }
 
-    suspend fun klines(symbol: String, interval: String, limit: Int = 200): List<Kline> =
-        safe { api.klines(symbol, interval, limit) }
+    suspend fun fundingRate(symbol: String): FundingRate? =
+        safe { api.fundingRate(symbol) }
 
-    fun tickerStream(symbols: List<String>): Flow<Ticker> =
-        streamClient.tickerStream(symbols)
-
-    fun klineStream(symbol: String, interval: String): Flow<Kline> =
-        streamClient.klineStream(symbol, interval)
-
-    fun depthStream(symbol: String): Flow<com.tradesim.app.core.model.OrderBook> =
-        streamClient.depthStream(symbol)
+    fun depthStream(
+        symbol: String,
+        levels: Int = 20,
+    ): Flow<com.tradesim.app.core.model.OrderBook> =
+        streamClient.depthStream(symbol, levels)
 
     private suspend fun <T> safe(block: suspend () -> T): T {
         try {

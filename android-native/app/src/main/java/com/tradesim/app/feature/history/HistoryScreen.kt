@@ -48,7 +48,7 @@ import com.tradesim.app.ui.appViewModelFactory
 import java.math.BigDecimal
 
 @Composable
-fun HistoryScreen() {
+fun HistoryScreen(onBack: (() -> Unit)? = null) {
     val container = LocalAppContainer.current
     val viewModel: HistoryViewModel = viewModel(
         factory = appViewModelFactory { HistoryViewModel(container.accountRepository) },
@@ -57,7 +57,7 @@ fun HistoryScreen() {
 
     Scaffold(
         containerColor = CsColors.Background,
-        topBar = { CsTopBar(title = "交易记录") },
+        topBar = { CsTopBar(title = "交易记录", onBack = onBack) },
     ) { padding ->
         LazyColumn(
             modifier = Modifier
@@ -68,17 +68,19 @@ fun HistoryScreen() {
         ) {
             item {
                 CsSegmented(
-                    options = listOf("全部", "开仓", "平仓"),
+                    options = listOf("全部", "开仓", "平仓", "资金费"),
                     selectedIndex = when (state.filter) {
                         TradeTypeFilter.ALL -> 0
                         TradeTypeFilter.OPEN -> 1
                         TradeTypeFilter.CLOSE -> 2
+                        TradeTypeFilter.FUNDING -> 3
                     },
                     onSelect = { index ->
                         viewModel.setFilter(
                             when (index) {
                                 1 -> TradeTypeFilter.OPEN
                                 2 -> TradeTypeFilter.CLOSE
+                                3 -> TradeTypeFilter.FUNDING
                                 else -> TradeTypeFilter.ALL
                             },
                         )
@@ -91,7 +93,7 @@ fun HistoryScreen() {
                 state.filtered.isEmpty() -> item {
                     CsEmptyState(
                         title = "暂无交易记录",
-                        hint = "完成第一笔模拟交易后在此查看",
+                        hint = "完成第一笔交易后在此查看",
                     )
                 }
                 else -> {
@@ -122,9 +124,15 @@ private fun TradeCard(trade: Trade) {
         TradeType.OPEN -> if (trade.side == Side.LONG) "开多" else "开空"
         TradeType.CLOSE -> if (trade.side == Side.LONG) "平多" else "平空"
         TradeType.LIQUIDATION -> if (trade.side == Side.LONG) "强平多" else "强平空"
+        TradeType.FUNDING -> "资金费"
+        TradeType.TAKE_PROFIT -> "止盈"
+        TradeType.STOP_LOSS -> "止损"
     }
     val typeColor = when {
         trade.type == TradeType.LIQUIDATION -> CsColors.Warning
+        trade.type == TradeType.FUNDING -> CsColors.TextSecondary
+        trade.type == TradeType.TAKE_PROFIT -> CsColors.Up
+        trade.type == TradeType.STOP_LOSS -> CsColors.Down
         trade.side == Side.LONG -> CsColors.Up
         else -> CsColors.Down
     }

@@ -4,8 +4,13 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 
 @Database(
-    entities = [AccountEntity::class, PositionEntity::class, TradeEntity::class],
-    version = 1,
+    entities = [
+        AccountEntity::class,
+        PositionEntity::class,
+        TradeEntity::class,
+        LimitOrderEntity::class,
+    ],
+    version = 5,
     exportSchema = true,
 )
 abstract class TradeSimDatabase : RoomDatabase() {

@@ -58,6 +58,7 @@ fun PositionsScreen(onOpenTrade: (String) -> Unit) {
             PositionsViewModel(
                 accountRepository = container.accountRepository,
                 marketRepository = container.marketRepository,
+                marketDataHub = container.marketDataHub,
             )
         },
     )
@@ -92,7 +93,7 @@ fun PositionsScreen(onOpenTrade: (String) -> Unit) {
                 state.positions.isEmpty() -> item {
                     CsEmptyState(
                         title = "暂无持仓",
-                        hint = "去行情页开一笔模拟单",
+                        hint = "去行情页选个币种开仓",
                     )
                 }
                 else -> items(state.positions, key = { it.position.id }) { marked ->
@@ -223,7 +224,11 @@ private fun PositionCard(
                 )
                 LabelValue(
                     label = "强平价",
-                    value = position.liquidationPrice.price(priceScale),
+                    value = if (position.liquidationPrice.signum() > 0) {
+                        position.liquidationPrice.price(priceScale)
+                    } else {
+                        "--"
+                    },
                     valueColor = CsColors.Down,
                     modifier = Modifier.weight(1f),
                 )

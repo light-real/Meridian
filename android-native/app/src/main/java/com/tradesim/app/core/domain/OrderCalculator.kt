@@ -3,6 +3,7 @@ package com.tradesim.app.core.domain
 import com.tradesim.app.core.model.Account
 import com.tradesim.app.core.model.AmountMode
 import com.tradesim.app.core.model.ClosePreview
+import com.tradesim.app.core.model.MarginMode
 import com.tradesim.app.core.model.OrderPreview
 import com.tradesim.app.core.model.Position
 import com.tradesim.app.core.model.Side
@@ -21,6 +22,7 @@ object OrderCalculator {
         amount: BigDecimal,
         markPrice: BigDecimal,
         rules: SymbolRules,
+        marginMode: MarginMode = MarginMode.ISOLATED,
     ): OrderPreview {
         if (leverage !in 1..150) return OrderPreview(error = TradeError.InvalidLeverage)
         if (amount.signum() <= 0 || markPrice.signum() <= 0) {
@@ -32,30 +34,56 @@ object OrderCalculator {
         } else {
             amount
         }
-        if (notional < rules.minNotional) {
-            return OrderPreview(
-                notional = notional,
-                error = TradeError.BelowMinNotional,
-            )
-        }
 
-        val margin = notional.divide(BigDecimal(leverage), 8, RoundingMode.HALF_UP)
-        val fee = notional.multiply(TradingEngine.FEE_RATE).setScale(8, RoundingMode.HALF_UP)
-        val requiredCash = margin.add(fee)
+        // 和引擎保持一致：先按 stepSize 取整，再用实际成交量算保证金和手续费
         val qtyScale = maxOf(rules.quantityScale, rules.stepSize.scale())
         val quantity = notional
             .divide(markPrice, 8, RoundingMode.DOWN)
             .floorToStep(rules.stepSize, qtyScale)
-        val liquidationPrice = TradingEngine.liquidationPrice(markPrice, side, leverage)
+        val executedNotional = quantity.multiply(markPrice).setScale(8, RoundingMode.HALF_UP)
+
+        if (quantity.signum() <= 0) {
+            return OrderPreview(
+                notional = notional,
+                error = TradeError.QuantityTooSmall,
+                marginMode = marginMode,
+            )
+        }
+        if (executedNotional < rules.minNotional) {
+            return OrderPreview(
+                notional = executedNotional,
+                quantity = quantity,
+                error = TradeError.BelowMinNotional,
+                marginMode = marginMode,
+            )
+        }
+
+        val margin = executedNotional.divide(BigDecimal(leverage), 8, RoundingMode.HALF_UP)
+        val fee = executedNotional.multiply(TradingEngine.FEE_RATE).setScale(8, RoundingMode.HALF_UP)
+        val requiredCash = margin.add(fee)
+        // 全仓下已有仓位的保证金也占额度，不能重复使用同一笔余额
+        val crossUsed = if (marginMode == MarginMode.CROSS) {
+            account.positions
+                .filter { it.marginMode == MarginMode.CROSS }
+                .fold(BigDecimal.ZERO) { acc, position -> acc.add(position.margin) }
+        } else {
+            BigDecimal.ZERO
+        }
+        val available = account.cash.subtract(crossUsed)
+        // 全仓没有单仓强平价，交给账户权益统一判断
+        val liquidationPrice = if (marginMode == MarginMode.CROSS) {
+            BigDecimal.ZERO
+        } else {
+            TradingEngine.liquidationPriceFor(markPrice, side, quantity, margin)
+        }
 
         val error = when {
-            quantity.signum() <= 0 -> TradeError.QuantityTooSmall
-            requiredCash > account.cash -> TradeError.InsufficientBalance
+            requiredCash > available -> TradeError.InsufficientBalance
             else -> null
         }
 
         return OrderPreview(
-            notional = notional,
+            notional = executedNotional,
             margin = margin,
             quantity = quantity,
             fee = fee,
@@ -63,6 +91,7 @@ object OrderCalculator {
             requiredCash = requiredCash,
             canSubmit = error == null,
             error = error,
+            marginMode = marginMode,
         )
     }
 
@@ -71,8 +100,18 @@ object OrderCalculator {
         leverage: Int,
         mode: AmountMode,
         percent: BigDecimal,
+        marginMode: MarginMode = MarginMode.ISOLATED,
     ): BigDecimal {
-        val maxNotional = TradingEngine.maxNotional(account.cash, leverage)
+        // 全仓下已有仓位的保证金占用额度，不能拿整个余额再算一遍
+        val used = if (marginMode == MarginMode.CROSS) {
+            account.positions
+                .filter { it.marginMode == MarginMode.CROSS }
+                .fold(BigDecimal.ZERO) { acc, position -> acc.add(position.margin) }
+        } else {
+            BigDecimal.ZERO
+        }
+        val available = account.cash.subtract(used).max(BigDecimal.ZERO)
+        val maxNotional = TradingEngine.maxNotional(available, leverage)
         val targetNotional = maxNotional.multiply(percent)
         val amount = if (mode == AmountMode.MARGIN) {
             targetNotional.divide(BigDecimal(leverage), 2, RoundingMode.DOWN)
@@ -95,10 +134,10 @@ object OrderCalculator {
 
         val isFull = applied.compareTo(position.quantity) == 0
         val ratio = applied.divide(position.quantity, 16, RoundingMode.HALF_UP)
-        val releasedMargin = if (isFull) {
-            position.margin
-        } else {
-            position.margin
+        val releasedMargin = when {
+            position.isCross -> BigDecimal.ZERO
+            isFull -> position.margin
+            else -> position.margin
                 .multiply(ratio)
                 .setScale(8, RoundingMode.HALF_UP)
                 .min(position.margin)

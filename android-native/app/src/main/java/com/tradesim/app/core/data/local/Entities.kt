@@ -26,13 +26,34 @@ data class PositionEntity(
     val leverage: Int,
     val liquidationPrice: String,
     val openedAt: Long,
+    val marginMode: String = "ISOLATED",
+    val takeProfitPrice: String? = null,
+    val stopLossPrice: String? = null,
+)
+
+@Entity(
+    tableName = "limit_orders",
+    indices = [Index(value = ["symbol"])],
+)
+data class LimitOrderEntity(
+    @PrimaryKey val id: String,
+    val symbol: String,
+    val baseAsset: String,
+    val side: String,
+    val notional: String,
+    val limitPrice: String,
+    val leverage: Int,
+    val marginMode: String = "ISOLATED",
+    val takeProfitPrice: String? = null,
+    val stopLossPrice: String? = null,
+    val createdAt: Long,
+    val frozenCash: String = "0",
 )
 
 @Entity(
     tableName = "trades",
     indices = [Index(value = ["createdAt"])],
-)
-data class TradeEntity(
+)data class TradeEntity(
     @PrimaryKey val id: String,
     val symbol: String,
     val baseAsset: String,

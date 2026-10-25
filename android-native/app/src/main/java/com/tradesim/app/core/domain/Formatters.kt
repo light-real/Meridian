@@ -37,6 +37,19 @@ fun BigDecimal.compactVolume(): String {
     }
 }
 
+/** 盘口数量用的紧凑写法：1.2K / 3.45M / 0.0123。 */
+fun BigDecimal.orderBookQty(): String {
+    val abs = abs()
+    return when {
+        abs >= BigDecimal("1000000") ->
+            divide(BigDecimal("1000000"), 2, RoundingMode.DOWN).stripTrailingZeros().toPlainString() + "M"
+        abs >= BigDecimal("1000") ->
+            divide(BigDecimal("1000"), 2, RoundingMode.DOWN).stripTrailingZeros().toPlainString() + "K"
+        abs >= BigDecimal("1") -> setScale(2, RoundingMode.DOWN).stripTrailingZeros().toPlainString()
+        else -> setScale(4, RoundingMode.DOWN).stripTrailingZeros().toPlainString()
+    }
+}
+
 fun formatTime(millis: Long, pattern: String = "MM-dd HH:mm"): String {
     val formatter = when (pattern) {
         "yyyy-MM-dd" -> DATE_FORMATTER
@@ -51,16 +64,3 @@ fun formatTime(millis: Long, pattern: String = "MM-dd HH:mm"): String {
 fun formatDate(millis: Long): String = formatTime(millis, "yyyy-MM-dd")
 
 fun formatFullTime(millis: Long): String = formatTime(millis, "yyyy-MM-dd HH:mm:ss")
-
-fun formatKlineTime(millis: Long, interval: String): String {
-    val pattern = when (interval) {
-        "1M" -> "yyyy-MM"
-        "1w", "1d", "3d" -> "MM-dd"
-        "4h", "6h", "8h", "12h" -> "MM-dd HH:00"
-        else -> "MM-dd HH:mm"
-    }
-    val formatter = DateTimeFormatter.ofPattern(pattern, Locale.getDefault())
-    return Instant.ofEpochMilli(millis)
-        .atZone(ZoneId.systemDefault())
-        .format(formatter)
-}

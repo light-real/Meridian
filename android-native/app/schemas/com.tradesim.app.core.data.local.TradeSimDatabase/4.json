@@ -1,0 +1,346 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 4,
+    "identityHash": "e59ee4a468936ae21814f5c8c8fe3fcc",
+    "entities": [
+      {
+        "tableName": "account",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `cash` TEXT NOT NULL, `initialCash` TEXT NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cash",
+            "columnName": "cash",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "initialCash",
+            "columnName": "initialCash",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "positions",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `symbol` TEXT NOT NULL, `baseAsset` TEXT NOT NULL, `side` TEXT NOT NULL, `quantity` TEXT NOT NULL, `entryPrice` TEXT NOT NULL, `margin` TEXT NOT NULL, `leverage` INTEGER NOT NULL, `liquidationPrice` TEXT NOT NULL, `openedAt` INTEGER NOT NULL, `marginMode` TEXT NOT NULL, `takeProfitPrice` TEXT, `stopLossPrice` TEXT, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "symbol",
+            "columnName": "symbol",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "baseAsset",
+            "columnName": "baseAsset",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "side",
+            "columnName": "side",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "quantity",
+            "columnName": "quantity",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "entryPrice",
+            "columnName": "entryPrice",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "margin",
+            "columnName": "margin",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "leverage",
+            "columnName": "leverage",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "liquidationPrice",
+            "columnName": "liquidationPrice",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "openedAt",
+            "columnName": "openedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "marginMode",
+            "columnName": "marginMode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "takeProfitPrice",
+            "columnName": "takeProfitPrice",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "stopLossPrice",
+            "columnName": "stopLossPrice",
+            "affinity": "TEXT",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_positions_symbol",
+            "unique": false,
+            "columnNames": [
+              "symbol"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_positions_symbol` ON `${TABLE_NAME}` (`symbol`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "trades",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `symbol` TEXT NOT NULL, `baseAsset` TEXT NOT NULL, `side` TEXT NOT NULL, `type` TEXT NOT NULL, `quantity` TEXT NOT NULL, `price` TEXT NOT NULL, `entryPrice` TEXT, `margin` TEXT NOT NULL, `leverage` INTEGER NOT NULL, `fee` TEXT NOT NULL, `pnl` TEXT, `openedAt` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "symbol",
+            "columnName": "symbol",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "baseAsset",
+            "columnName": "baseAsset",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "side",
+            "columnName": "side",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "type",
+            "columnName": "type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "quantity",
+            "columnName": "quantity",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "price",
+            "columnName": "price",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "entryPrice",
+            "columnName": "entryPrice",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "margin",
+            "columnName": "margin",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "leverage",
+            "columnName": "leverage",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fee",
+            "columnName": "fee",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pnl",
+            "columnName": "pnl",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "openedAt",
+            "columnName": "openedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_trades_createdAt",
+            "unique": false,
+            "columnNames": [
+              "createdAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_trades_createdAt` ON `${TABLE_NAME}` (`createdAt`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "limit_orders",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `symbol` TEXT NOT NULL, `baseAsset` TEXT NOT NULL, `side` TEXT NOT NULL, `notional` TEXT NOT NULL, `limitPrice` TEXT NOT NULL, `leverage` INTEGER NOT NULL, `marginMode` TEXT NOT NULL, `takeProfitPrice` TEXT, `stopLossPrice` TEXT, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "symbol",
+            "columnName": "symbol",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "baseAsset",
+            "columnName": "baseAsset",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "side",
+            "columnName": "side",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "notional",
+            "columnName": "notional",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "limitPrice",
+            "columnName": "limitPrice",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "leverage",
+            "columnName": "leverage",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "marginMode",
+            "columnName": "marginMode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "takeProfitPrice",
+            "columnName": "takeProfitPrice",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "stopLossPrice",
+            "columnName": "stopLossPrice",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_limit_orders_symbol",
+            "unique": false,
+            "columnNames": [
+              "symbol"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_limit_orders_symbol` ON `${TABLE_NAME}` (`symbol`)"
+          }
+        ],
+        "foreignKeys": []
+      }
+    ],
+    "views": [],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'e59ee4a468936ae21814f5c8c8fe3fcc')"
+    ]
+  }
+}

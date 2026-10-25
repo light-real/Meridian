@@ -1,6 +1,8 @@
 package com.tradesim.app.core.data.local
 
 import com.tradesim.app.core.model.Account
+import com.tradesim.app.core.model.LimitOrder
+import com.tradesim.app.core.model.MarginMode
 import com.tradesim.app.core.model.Position
 import com.tradesim.app.core.model.Side
 import com.tradesim.app.core.model.Trade
@@ -18,6 +20,37 @@ fun Account.toEntity(): AccountEntity = AccountEntity(
     initialCash = initialCash.toPlainString(),
 )
 
+fun LimitOrderEntity.toModel(): LimitOrder = LimitOrder(
+    id = id,
+    symbol = symbol,
+    baseAsset = baseAsset,
+    side = side.toSide(),
+    notional = notional.toDecimal(),
+    limitPrice = limitPrice.toDecimal(),
+    leverage = leverage,
+    marginMode = runCatching { MarginMode.valueOf(marginMode) }
+        .getOrDefault(MarginMode.ISOLATED),
+    takeProfitPrice = takeProfitPrice?.toDecimalOrNull(),
+    stopLossPrice = stopLossPrice?.toDecimalOrNull(),
+    createdAt = createdAt,
+    frozenCash = frozenCash.toDecimal(),
+)
+
+fun LimitOrder.toEntity(): LimitOrderEntity = LimitOrderEntity(
+    id = id,
+    symbol = symbol,
+    baseAsset = baseAsset,
+    side = side.name,
+    notional = notional.toPlainString(),
+    limitPrice = limitPrice.toPlainString(),
+    leverage = leverage,
+    marginMode = marginMode.name,
+    takeProfitPrice = takeProfitPrice?.toPlainString(),
+    stopLossPrice = stopLossPrice?.toPlainString(),
+    createdAt = createdAt,
+    frozenCash = frozenCash.toPlainString(),
+)
+
 fun PositionEntity.toModel(): Position = Position(
     id = id,
     symbol = symbol,
@@ -29,6 +62,10 @@ fun PositionEntity.toModel(): Position = Position(
     leverage = leverage,
     liquidationPrice = liquidationPrice.toDecimal(),
     openedAt = openedAt,
+    marginMode = runCatching { MarginMode.valueOf(marginMode) }
+        .getOrDefault(MarginMode.ISOLATED),
+    takeProfitPrice = takeProfitPrice?.toDecimalOrNull(),
+    stopLossPrice = stopLossPrice?.toDecimalOrNull(),
 )
 
 fun TradeEntity.toModel(): Trade = Trade(
@@ -59,6 +96,9 @@ fun Position.toEntity(): PositionEntity = PositionEntity(
     leverage = leverage,
     liquidationPrice = liquidationPrice.toPlainString(),
     openedAt = openedAt,
+    marginMode = marginMode.name,
+    takeProfitPrice = takeProfitPrice?.toPlainString(),
+    stopLossPrice = stopLossPrice?.toPlainString(),
 )
 
 fun Trade.toEntity(): TradeEntity = TradeEntity(

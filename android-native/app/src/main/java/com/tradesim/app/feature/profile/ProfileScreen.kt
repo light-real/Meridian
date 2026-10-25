@@ -12,15 +12,19 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.CloudDone
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Logout
+import androidx.compose.material.icons.outlined.NotificationsActive
+import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.PersonOutline
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Sync
@@ -50,6 +54,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.tradesim.app.BuildConfig
 import com.tradesim.app.core.data.repository.SyncState
+import com.tradesim.app.core.data.settings.PriceColorConvention
 import com.tradesim.app.core.designsystem.CsCard
 import com.tradesim.app.core.designsystem.CsColors
 import com.tradesim.app.core.designsystem.CsDivider
@@ -75,15 +80,18 @@ fun ProfileScreen(
                 accountRepository = container.accountRepository,
                 favoritesRepository = container.favoritesRepository,
                 settingsStore = container.settingsStore,
-                marketRepository = container.marketRepository,
+                marketDataHub = container.marketDataHub,
             )
         },
     )
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val colorConvention by container.settingsStore.colorConvention.collectAsStateWithLifecycle()
+    val monitorEnabled by container.settingsStore.monitorEnabled.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var showResetDialog by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showAboutDialog by remember { mutableStateOf(false) }
+    var showColorDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.message) {
         state.message?.let {
@@ -135,6 +143,22 @@ fun ProfileScreen(
                     CsDivider()
                 }
                 ProfileMenuRow(
+                    icon = Icons.Outlined.Palette,
+                    label = "涨跌颜色",
+                    value = if (colorConvention == PriceColorConvention.RED_UP) "红涨绿跌" else "绿涨红跌",
+                    onClick = { showColorDialog = true },
+                )
+                CsDivider()
+                ProfileMenuRow(
+                    icon = Icons.Outlined.NotificationsActive,
+                    label = "后台监控",
+                    value = if (monitorEnabled) "已开启" else "已关闭",
+                    onClick = {
+                        container.settingsStore.setMonitorEnabled(!monitorEnabled)
+                    },
+                )
+                CsDivider()
+                ProfileMenuRow(
                     icon = Icons.Outlined.Refresh,
                     label = "重置账户",
                     value = "恢复 10,000 USDT",
@@ -159,23 +183,57 @@ fun ProfileScreen(
                 )
             }
 
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(CsColors.Warning.copy(alpha = 0.08f))
-                    .padding(14.dp),
-            ) {
-                Text(
-                    text = "模拟交易，不涉及真实资金，不构成任何投资建议。加密资产价格波动较大，请理性使用。",
-                    color = CsColors.Warning.copy(alpha = 0.9f),
-                    fontSize = 11.sp,
-                    lineHeight = 17.sp,
-                )
-            }
-
             Spacer(modifier = Modifier.height(16.dp))
         }
+    }
+
+    if (showColorDialog) {
+        AlertDialog(
+            onDismissRequest = { showColorDialog = false },
+            title = { Text("涨跌颜色") },
+            text = {
+                Column {
+                    Text(
+                        text = "数字资产和美股习惯绿涨红跌，A 股习惯红涨绿跌。选一个你看得顺眼的。",
+                        color = CsColors.TextSecondary,
+                        fontSize = 13.sp,
+                        lineHeight = 19.sp,
+                    )
+                    Spacer(modifier = Modifier.height(14.dp))
+                    PriceColorOption(
+                        title = "绿涨红跌",
+                        hint = "加密货币 / 美股习惯",
+                        upColor = CsColors.Green,
+                        downColor = CsColors.Red,
+                        selected = colorConvention == PriceColorConvention.GREEN_UP,
+                        onClick = {
+                            container.settingsStore.setColorConvention(PriceColorConvention.GREEN_UP)
+                            showColorDialog = false
+                        },
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    PriceColorOption(
+                        title = "红涨绿跌",
+                        hint = "A 股习惯",
+                        upColor = CsColors.Red,
+                        downColor = CsColors.Green,
+                        selected = colorConvention == PriceColorConvention.RED_UP,
+                        onClick = {
+                            container.settingsStore.setColorConvention(PriceColorConvention.RED_UP)
+                            showColorDialog = false
+                        },
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showColorDialog = false }) {
+                    Text("关闭", color = CsColors.TextMuted)
+                }
+            },
+            containerColor = CsColors.SurfaceElevated,
+            titleContentColor = CsColors.TextPrimary,
+            textContentColor = CsColors.TextSecondary,
+        )
     }
 
     if (showResetDialog) {
@@ -240,9 +298,7 @@ fun ProfileScreen(
                 Column {
                     Text("版本 ${BuildConfig.VERSION_NAME}")
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text("USDT 永续合约模拟交易 App，支持做多/做空、杠杆、强平、K 线与云端同步。")
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text("模拟交易，不涉及真实资金。")
+                    Text("USDT 永续合约交易 App，支持做多/做空、杠杆、强平、K 线与云端同步。")
                 }
             },
             confirmButton = {
@@ -388,6 +444,61 @@ private fun StatsCard(state: ProfileUiState) {
         Spacer(modifier = Modifier.height(12.dp))
         CsStatRow("持仓数量", "${state.positions.size} 个")
         CsStatRow("占用保证金", state.account.totalMargin().money(2) + " USDT")
+    }
+}
+
+@Composable
+private fun PriceColorOption(
+    title: String,
+    hint: String,
+    upColor: Color,
+    downColor: Color,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(if (selected) CsColors.Primary.copy(alpha = 0.08f) else Color.Transparent)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                color = CsColors.TextPrimary,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(text = hint, color = CsColors.TextMuted, fontSize = 11.sp)
+        }
+        Text(
+            text = "+3.24%",
+            color = upColor,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = "-1.08%",
+            color = downColor,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Spacer(modifier = Modifier.width(10.dp))
+        if (selected) {
+            Icon(
+                imageVector = Icons.Outlined.CheckCircle,
+                contentDescription = null,
+                tint = CsColors.Primary,
+                modifier = Modifier.size(18.dp),
+            )
+        } else {
+            Spacer(modifier = Modifier.size(18.dp))
+        }
     }
 }
 

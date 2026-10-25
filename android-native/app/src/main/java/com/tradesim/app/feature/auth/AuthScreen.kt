@@ -123,7 +123,7 @@ fun AuthScreen(onLoggedIn: () -> Unit) {
             )
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = "合约交易模拟盘",
+                text = "合约交易 · USDT 永续",
                 color = CsColors.TextMuted,
                 fontSize = 13.sp,
             )
@@ -224,14 +224,6 @@ fun AuthScreen(onLoggedIn: () -> Unit) {
             }
 
             Spacer(modifier = Modifier.height(36.dp))
-
-            Text(
-                text = "模拟交易，不涉及真实资金，不构成任何投资建议",
-                color = CsColors.TextFaint,
-                fontSize = 11.sp,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth(),
-            )
 
             Spacer(modifier = Modifier.height(24.dp))
         }

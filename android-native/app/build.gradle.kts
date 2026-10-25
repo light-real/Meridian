@@ -59,6 +59,17 @@ android {
             versionNameSuffix = "-debug"
             isMinifyEnabled = false
         }
+        /**
+         * 和 debug 同包名、同签名（可直接覆盖安装、保留数据），
+         * 但不带 debuggable 标记，ART 会走 AOT 编译，Compose 帧耗时能降一大截。
+         * 日常使用装这个包，需要调试时再装 debug。
+         */
+        create("perf") {
+            initWith(getByName("debug"))
+            isDebuggable = false
+            versionNameSuffix = "-perf"
+            signingConfig = signingConfigs.getByName("debug")
+        }
         release {
             isMinifyEnabled = false
             isShrinkResources = false

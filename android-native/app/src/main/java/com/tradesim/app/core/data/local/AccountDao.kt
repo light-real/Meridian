@@ -19,6 +19,21 @@ interface AccountDao {
     @Query("SELECT * FROM trades ORDER BY createdAt DESC")
     fun observeTrades(): Flow<List<TradeEntity>>
 
+    @Query("SELECT * FROM limit_orders ORDER BY createdAt DESC")
+    fun observeLimitOrders(): Flow<List<LimitOrderEntity>>
+
+    @Query("SELECT * FROM limit_orders ORDER BY createdAt DESC")
+    suspend fun getLimitOrders(): List<LimitOrderEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertLimitOrder(entity: LimitOrderEntity)
+
+    @Query("DELETE FROM limit_orders WHERE id = :id")
+    suspend fun deleteLimitOrder(id: String)
+
+    @Query("DELETE FROM limit_orders")
+    suspend fun clearLimitOrders()
+
     @Query("SELECT * FROM account WHERE id = 1")
     suspend fun getAccount(): AccountEntity?
 
@@ -69,5 +84,6 @@ interface AccountDao {
         upsertPositions(positions)
         clearTrades()
         insertTrades(trades)
+        clearLimitOrders()
     }
 }

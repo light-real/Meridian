@@ -228,12 +228,12 @@ fun ClosePositionSheet(
             CsTextField(
                 value = sheet.quantityInput,
                 onValueChange = onQuantityChange,
-                label = "平仓数量",
+                label = "平仓金额",
                 placeholder = "0.00",
                 keyboardType = KeyboardType.Decimal,
                 trailingContent = {
                     Text(
-                        text = baseAsset,
+                        text = "USDT",
                         color = CsColors.TextMuted,
                         fontSize = 12.sp,
                         modifier = Modifier.padding(end = 10.dp),
@@ -263,8 +263,12 @@ fun ClosePositionSheet(
             Spacer(modifier = Modifier.height(10.dp))
 
             CsStatRow(
+                label = "平仓数量",
+                value = preview.quantity.quantity(quantityScale) + " $baseAsset",
+            )
+            CsStatRow(
                 label = "最多可平",
-                value = position.quantity.quantity(quantityScale) + " $baseAsset",
+                value = position.quantity.multiply(sheet.markPrice).money(2) + " USDT",
             )
             CsStatRow(
                 label = "平仓比例",

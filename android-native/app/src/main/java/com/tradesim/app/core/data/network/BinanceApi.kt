@@ -1,7 +1,7 @@
 package com.tradesim.app.core.data.network
 
 import com.tradesim.app.BuildConfig
-import com.tradesim.app.core.model.Kline
+import com.tradesim.app.core.model.FundingRate
 import com.tradesim.app.core.model.SymbolInfo
 import com.tradesim.app.core.model.Ticker
 import java.math.BigDecimal
@@ -10,10 +10,9 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -153,36 +152,24 @@ class BinanceApi(
     suspend fun ticker(symbol: String): Ticker? =
         tickers(listOf(symbol)).firstOrNull { it.symbol.equals(symbol, ignoreCase = true) }
 
-    suspend fun klines(
-        symbol: String,
-        interval: String,
-        limit: Int = 200,
-    ): List<Kline> {
+    suspend fun fundingRate(symbol: String): FundingRate? {
         val body = http.get(
             url(
-                path = "fapi/v1/klines",
-                params = mapOf(
-                    "symbol" to symbol,
-                    "interval" to interval,
-                    "limit" to limit.toString(),
-                ),
+                path = "fapi/v1/premiumIndex",
+                params = mapOf("symbol" to symbol),
             ),
         )
-        val rows = json.parseToJsonElement(body).jsonArray
-        return rows.mapNotNull { element ->
-            val row = element as? JsonArray ?: return@mapNotNull null
-            if (row.size < 7) return@mapNotNull null
-            Kline(
-                openTime = row[0].asLong(),
-                open = row[1].asDecimal(),
-                high = row[2].asDecimal(),
-                low = row[3].asDecimal(),
-                close = row[4].asDecimal(),
-                volume = row[5].asDecimal(),
-                closeTime = row[6].asLong(),
-                isClosed = true,
-            )
-        }
+        val obj = runCatching { json.parseToJsonElement(body) as? JsonObject }.getOrNull()
+            ?: return null
+        val resolved = obj["symbol"]?.jsonPrimitive?.contentOrNull ?: return null
+        return FundingRate(
+            symbol = resolved,
+            rate = obj["lastFundingRate"]?.jsonPrimitive?.contentOrNull
+                ?.toBigDecimalOrNull() ?: BigDecimal.ZERO,
+            nextFundingTime = obj["nextFundingTime"]?.jsonPrimitive?.longOrNull ?: 0L,
+            markPrice = obj["markPrice"]?.jsonPrimitive?.contentOrNull
+                ?.toBigDecimalOrNull() ?: BigDecimal.ZERO,
+        )
     }
 
     private fun url(path: String, params: Map<String, String> = emptyMap()): String {

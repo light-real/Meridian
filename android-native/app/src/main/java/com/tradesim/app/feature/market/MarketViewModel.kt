@@ -3,6 +3,7 @@ package com.tradesim.app.feature.market
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tradesim.app.core.AppConstants
+import com.tradesim.app.core.data.market.MarketDataHub
 import com.tradesim.app.core.data.repository.AccountRepository
 import com.tradesim.app.core.data.repository.FavoritesRepository
 import com.tradesim.app.core.data.repository.MarketRepository
@@ -10,14 +11,9 @@ import com.tradesim.app.core.model.Account
 import com.tradesim.app.core.model.SymbolInfo
 import com.tradesim.app.core.model.Ticker
 import java.math.BigDecimal
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -42,24 +38,22 @@ data class MarketUiState(
     val notice: String? = null,
 )
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class MarketViewModel(
     private val marketRepository: MarketRepository,
     private val accountRepository: AccountRepository,
     private val favoritesRepository: FavoritesRepository,
+    private val marketDataHub: MarketDataHub,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MarketUiState())
     val uiState: StateFlow<MarketUiState> = _uiState.asStateFlow()
 
     private val symbolsFlow = MutableStateFlow<List<SymbolInfo>>(emptyList())
-    private var lastLiquidationCheck = 0L
 
     init {
         viewModelScope.launch {
             accountRepository.account.collect { account ->
                 _uiState.update { it.copy(account = account) }
-                recompute()
             }
         }
         viewModelScope.launch {
@@ -68,16 +62,13 @@ class MarketViewModel(
                 recompute()
             }
         }
+        // 资产卡的浮盈统一读价格中枢，不再自己订阅盘口
         viewModelScope.launch {
-            combine(favoritesRepository.favorites, symbolsFlow) { favorites, symbols ->
-                (favorites + symbols.take(30).map { it.symbol }).distinct()
-            }
-                .distinctUntilChanged()
-                .flatMapLatest { marketRepository.tickerStream(it) }
-                .catch { error ->
-                    _uiState.update { it.copy(error = error.message ?: "行情连接失败") }
+            marketDataHub.marks.collect { marks ->
+                if (marks != _uiState.value.marks) {
+                    _uiState.update { it.copy(marks = marks) }
                 }
-                .collect { ticker -> onTicker(ticker) }
+            }
         }
         loadSymbols()
     }
@@ -146,38 +137,10 @@ class MarketViewModel(
                 .onSuccess { tickers ->
                     val bySymbol = tickers.associateBy { it.symbol }
                     _uiState.update { state ->
-                        state.copy(
-                            tickers = state.tickers + bySymbol,
-                            marks = state.marks + bySymbol.mapValues { it.value.lastPrice },
-                        )
+                        state.copy(tickers = state.tickers + bySymbol)
                     }
                     recompute()
                 }
-        }
-    }
-
-    private fun onTicker(ticker: Ticker) {
-        _uiState.update { state ->
-            state.copy(
-                tickers = state.tickers + (ticker.symbol to ticker),
-                marks = state.marks + (ticker.symbol to ticker.lastPrice),
-            )
-        }
-        recompute()
-        accountRepository.updateMarks(mapOf(ticker.symbol to ticker.lastPrice))
-
-        val now = System.currentTimeMillis()
-        if (now - lastLiquidationCheck >= 1_000L) {
-            lastLiquidationCheck = now
-            viewModelScope.launch {
-                val liquidated = accountRepository.checkLiquidations(
-                    mapOf(ticker.symbol to ticker.lastPrice),
-                )
-                if (liquidated.isNotEmpty()) {
-                    val names = liquidated.joinToString("、") { it.baseAsset }
-                    _uiState.update { it.copy(notice = "$names 仓位已触发强制平仓") }
-                }
-            }
         }
     }
 

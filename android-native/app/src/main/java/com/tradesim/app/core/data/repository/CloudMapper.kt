@@ -5,6 +5,7 @@ import com.tradesim.app.core.data.supabase.CloudUserData
 import com.tradesim.app.core.domain.TradingEngine
 import com.tradesim.app.core.domain.formatFullTime
 import com.tradesim.app.core.model.Account
+import com.tradesim.app.core.model.MarginMode
 import com.tradesim.app.core.model.Position
 import com.tradesim.app.core.model.Side
 import com.tradesim.app.core.model.Trade
@@ -81,6 +82,9 @@ class CloudMapper {
         put("margin", JsonPrimitive(position.margin))
         put("tradeType", position.side.cloudValue)
         put("liqPrice", position.liquidationPrice.toPlainString())
+        put("marginMode", position.marginMode.name)
+        position.takeProfitPrice?.let { put("takeProfit", it.toPlainString()) }
+        position.stopLossPrice?.let { put("stopLoss", it.toPlainString()) }
         put("buyTime", formatFullTime(position.openedAt))
     }
 
@@ -146,6 +150,11 @@ class CloudMapper {
             leverage = leverage,
             liquidationPrice = liquidationPrice,
             openedAt = openedAt,
+            marginMode = runCatching {
+                MarginMode.valueOf(obj["marginMode"].stringOrNull().orEmpty())
+            }.getOrDefault(MarginMode.ISOLATED),
+            takeProfitPrice = obj["takeProfit"].decimalOrNull(),
+            stopLossPrice = obj["stopLoss"].decimalOrNull(),
         )
     }
 
@@ -156,6 +165,9 @@ class CloudMapper {
             "sell" -> TradeType.OPEN to Side.SHORT
             "close_buy" -> TradeType.CLOSE to Side.LONG
             "close_sell" -> TradeType.CLOSE to Side.SHORT
+            "funding" -> TradeType.FUNDING to Side.LONG
+            "take_profit" -> TradeType.TAKE_PROFIT to Side.LONG
+            "stop_loss" -> TradeType.STOP_LOSS to Side.LONG
             else -> return null
         }
         val isLiquidation = obj["isLiquidation"].booleanOrFalse()
@@ -206,6 +218,9 @@ class CloudMapper {
     private fun Trade.cloudType(): String = when (type) {
         TradeType.OPEN -> side.cloudValue
         TradeType.CLOSE, TradeType.LIQUIDATION -> if (side == Side.LONG) "close_buy" else "close_sell"
+        TradeType.FUNDING -> "funding"
+        TradeType.TAKE_PROFIT -> "take_profit"
+        TradeType.STOP_LOSS -> "stop_loss"
     }
 
     private fun JsonElement?.stringOrNull(): String? =

@@ -9,13 +9,19 @@ import com.tradesim.app.core.data.supabase.SupabaseClient
 import com.tradesim.app.core.domain.TradingEngine
 import com.tradesim.app.core.model.Account
 import com.tradesim.app.core.model.CloseRequest
+import com.tradesim.app.core.model.LimitOrder
+import com.tradesim.app.core.model.MarginMode
 import com.tradesim.app.core.model.OrderRequest
 import com.tradesim.app.core.model.Position
 import com.tradesim.app.core.model.Side
 import com.tradesim.app.core.model.SymbolInfo
 import com.tradesim.app.core.model.Trade
+import com.tradesim.app.core.model.TradeError
 import com.tradesim.app.core.model.TradeOutcome
+import com.tradesim.app.core.model.TradeType
 import java.math.BigDecimal
+import java.math.RoundingMode
+import java.util.UUID
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -41,6 +47,7 @@ class AccountRepository(
     private val authRepository: AuthRepository,
     private val supabase: SupabaseClient,
     private val cloudMapper: CloudMapper,
+    private val marketRepository: MarketRepository,
 ) {
     private val dao = database.accountDao()
     private val operationMutex = Mutex()
@@ -57,7 +64,8 @@ class AccountRepository(
         dao.observeAccount(),
         dao.observePositions(),
         dao.observeTrades(),
-    ) { accountEntity, positions, trades ->
+        dao.observeLimitOrders(),
+    ) { accountEntity, positions, trades, limitOrders ->
         Account(
             cash = accountEntity?.cash?.toDecimalOr(AppConstants.INITIAL_CASH)
                 ?: AppConstants.INITIAL_CASH,
@@ -65,6 +73,7 @@ class AccountRepository(
                 ?: AppConstants.INITIAL_CASH,
             positions = positions.map { it.toModel() },
             trades = trades.map { it.toModel() },
+            limitOrders = limitOrders.map { it.toModel() },
         )
     }.distinctUntilChanged()
 
@@ -78,6 +87,9 @@ class AccountRepository(
         notional: BigDecimal,
         leverage: Int,
         markPrice: BigDecimal,
+        marginMode: MarginMode = MarginMode.ISOLATED,
+        takeProfitPrice: BigDecimal? = null,
+        stopLossPrice: BigDecimal? = null,
     ): TradeOutcome {
         val outcome = operationMutex.withLock {
             database.withTransaction {
@@ -91,6 +103,9 @@ class AccountRepository(
                         notional = notional,
                         leverage = leverage,
                         rules = symbol.rules(),
+                        marginMode = marginMode,
+                        takeProfitPrice = takeProfitPrice,
+                        stopLossPrice = stopLossPrice,
                     ),
                     markPrice = markPrice,
                 )
@@ -126,14 +141,247 @@ class AccountRepository(
         return outcome
     }
 
-    suspend fun checkLiquidations(marks: Map<String, BigDecimal>): List<Position> {
+    /** 挂一张限价单，同时冻结保证金（逐仓 = 保证金 + 手续费，全仓 = 手续费）。 */
+    suspend fun placeLimitOrder(
+        order: LimitOrder,
+        frozenCash: BigDecimal,
+    ): Boolean {
+        var ok = true
+        operationMutex.withLock {
+            database.withTransaction {
+                val current = readAccount()
+                if (current.cash < frozenCash) {
+                    ok = false
+                    return@withTransaction
+                }
+                dao.upsertAccount(
+                    current.copy(cash = current.cash.subtract(frozenCash)).toEntity(),
+                )
+                dao.upsertLimitOrder(order.copy(frozenCash = frozenCash).toEntity())
+            }
+        }
+        return ok
+    }
+
+    /** 撤单，把冻结的现金退回去。 */
+    suspend fun cancelLimitOrder(orderId: String) {
+        operationMutex.withLock {
+            database.withTransaction {
+                val order = dao.getLimitOrders().firstOrNull { it.id == orderId }
+                    ?: return@withTransaction
+                dao.deleteLimitOrder(orderId)
+                val current = readAccount()
+                dao.upsertAccount(
+                    current
+                        .copy(cash = current.cash.add(order.frozenCash.toBigDecimalOrNull() ?: BigDecimal.ZERO))
+                        .toEntity(),
+                )
+            }
+        }
+    }
+
+    /**
+     * 检查限价单是否到价。到价就按限价成交（市价更优时也按限价，模拟里不做滑点补偿），
+     * 成交失败的（余额不足等）直接撤单并返回原因。
+     */
+    suspend fun checkLimitOrders(marks: Map<String, BigDecimal>): List<LimitOrder> {
+        if (marks.isEmpty()) return emptyList()
+
+        // 先把交易规则取出来（BinanceApi 里有缓存），避免在事务里发网络请求
+        val rules = runCatching { marketRepository.symbols() }
+            .getOrElse { emptyList() }
+            .associate { it.symbol to it.rules() }
+
+        val filled = mutableListOf<LimitOrder>()
+        operationMutex.withLock {
+            database.withTransaction {
+                val orders = dao.getLimitOrders().map { it.toModel() }
+                if (orders.isEmpty()) return@withTransaction
+
+                var current = readAccount()
+                orders.forEach { order ->
+                    val mark = marks[order.symbol] ?: return@forEach
+                    if (!order.isTriggered(mark)) return@forEach
+
+                    val ruleSet = rules[order.symbol] ?: return@forEach
+                    // 先把挂单时冻结的钱解冻，再由引擎按正常开仓扣一次
+                    current = current.copy(cash = current.cash.add(order.frozenCash))
+                    val result = TradingEngine.open(
+                        account = current,
+                        request = OrderRequest(
+                            symbol = order.symbol,
+                            baseAsset = order.baseAsset,
+                            side = order.side,
+                            notional = order.notional,
+                            leverage = order.leverage,
+                            rules = ruleSet,
+                            marginMode = order.marginMode,
+                            takeProfitPrice = order.takeProfitPrice,
+                            stopLossPrice = order.stopLossPrice,
+                        ),
+                        markPrice = order.limitPrice,
+                    )
+
+                    if (result is TradeOutcome.Success) {
+                        current = result.account
+                        persist(result.account, result.trade)
+                        filled += order
+                    } else {
+                        // 余额不够等异常：解冻后撤单
+                        dao.upsertAccount(current.toEntity())
+                    }
+                    dao.deleteLimitOrder(order.id)
+                }
+            }
+        }
+        if (filled.isNotEmpty()) syncAsync()
+        return filled
+    }
+
+    /** 给逐仓仓位追加保证金。 */
+    suspend fun addMargin(positionId: String, amount: BigDecimal): TradeError? {
+        var error: TradeError? = null
+        operationMutex.withLock {
+            database.withTransaction {
+                val current = readAccount()
+                val result = TradingEngine.addMargin(current, positionId, amount)
+                val updated = result.account
+                if (updated == null) {
+                    error = result.error
+                    return@withTransaction
+                }
+                dao.upsertAccount(updated.toEntity())
+                dao.replacePositions(updated.positions.map { it.toEntity() })
+            }
+        }
+        if (error == null) syncAsync()
+        return error
+    }
+
+    /** 修改某个仓位的止盈止损价，传 null 表示取消。 */    suspend fun updateTriggers(
+        positionId: String,
+        takeProfitPrice: BigDecimal?,
+        stopLossPrice: BigDecimal?,
+    ) {        operationMutex.withLock {
+            database.withTransaction {
+                val current = readAccount()
+                if (current.positions.none { it.id == positionId }) return@withTransaction
+                val updated = current.positions.map { position ->
+                    if (position.id == positionId) {
+                        position.copy(
+                            takeProfitPrice = takeProfitPrice,
+                            stopLossPrice = stopLossPrice,
+                        )
+                    } else {
+                        position
+                    }
+                }
+                dao.replacePositions(updated.map { it.toEntity() })
+            }
+        }
+        syncAsync()
+    }
+
+    /** 检查并执行止盈止损，返回被平掉的仓位。 */
+    suspend fun checkTriggers(marks: Map<String, BigDecimal>): List<Position> {
         if (marks.isEmpty()) return emptyList()
         lastMarks = lastMarks + marks
+        val effectiveMarks = lastMarks
+
+        val closed = operationMutex.withLock {
+            database.withTransaction {
+                val current = readAccount()
+                val outcome = TradingEngine.checkTriggers(current, effectiveMarks)
+                if (outcome.closed.isNotEmpty()) {
+                    dao.upsertAccount(outcome.account.toEntity())
+                    dao.replacePositions(outcome.account.positions.map { it.toEntity() })
+                    outcome.trades.forEach { dao.insertTrade(it.toEntity()) }
+                    dao.trimTrades(AppConstants.MAX_LOCAL_HISTORY)
+                }
+                outcome.closed
+            }
+        }
+
+        if (closed.isNotEmpty()) syncAsync()
+        return closed
+    }
+
+    /**
+     * 结算某个交易对上的资金费。
+     *
+     * 规则和币安一致：费率为正时多头付给空头，为负时反过来；
+     * 支付额 = 持仓名义价值（数量 × 标记价格）× 费率。
+     * 只结算在 [since] 之前就已开仓的仓位，避免收刚开仓的费用。
+     */
+    suspend fun applyFunding(
+        symbol: String,
+        rate: BigDecimal,
+        markPrice: BigDecimal,
+        since: Long,
+    ): List<Trade> {
+        if (rate.signum() == 0 || markPrice.signum() <= 0) return emptyList()
+
+        val newTrades = operationMutex.withLock {
+            database.withTransaction {
+                val current = readAccount()
+                val targets = current.positions.filter {
+                    it.symbol == symbol && it.openedAt <= since
+                }
+                if (targets.isEmpty()) return@withTransaction emptyList()
+
+                val now = System.currentTimeMillis()
+                var cash = current.cash
+                val trades = targets.map { position ->
+                    val payment = position.quantity
+                        .multiply(markPrice)
+                        .multiply(rate)
+                        .setScale(8, RoundingMode.HALF_UP)
+                    val delta = if (position.side == Side.LONG) payment.negate() else payment
+                    cash = cash.add(delta).setScale(8, RoundingMode.HALF_UP)
+                    Trade(
+                        id = UUID.randomUUID().toString(),
+                        symbol = position.symbol,
+                        baseAsset = position.baseAsset,
+                        side = position.side,
+                        type = TradeType.FUNDING,
+                        quantity = position.quantity,
+                        price = markPrice,
+                        entryPrice = position.entryPrice,
+                        margin = BigDecimal.ZERO,
+                        leverage = position.leverage,
+                        fee = BigDecimal.ZERO,
+                        pnl = delta,
+                        openedAt = position.openedAt,
+                        createdAt = now,
+                    )
+                }
+
+                val updated = current.copy(
+                    cash = cash.max(BigDecimal.ZERO),
+                    trades = trades + current.trades,
+                )
+                dao.upsertAccount(updated.toEntity())
+                dao.replacePositions(updated.positions.map { it.toEntity() })
+                trades.forEach { dao.insertTrade(it.toEntity()) }
+                dao.trimTrades(AppConstants.MAX_LOCAL_HISTORY)
+                trades
+            }
+        }
+
+        if (newTrades.isNotEmpty()) syncAsync()
+        return newTrades
+    }
+
+    suspend fun checkLiquidations(marks: Map<String, BigDecimal>): List<Position> {        if (marks.isEmpty()) return emptyList()
+        lastMarks = lastMarks + marks
+        // 用累积的所有标记价来判断：全仓强平看的是整个账户权益，
+        // 只拿当前这个币的最新价会把其他仓位的浮亏当成 0。
+        val effectiveMarks = lastMarks
 
         val liquidated = operationMutex.withLock {
             database.withTransaction {
                 val current = readAccount()
-                val outcome = TradingEngine.liquidate(current, marks)
+                val outcome = TradingEngine.liquidate(current, effectiveMarks)
                 if (outcome.liquidated.isNotEmpty()) {
                     dao.upsertAccount(outcome.account.toEntity())
                     dao.replacePositions(outcome.account.positions.map { it.toEntity() })

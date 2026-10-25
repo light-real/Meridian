@@ -2,9 +2,7 @@ package com.tradesim.app.core.data.network
 
 import com.tradesim.app.BuildConfig
 import com.tradesim.app.core.model.BookLevel
-import com.tradesim.app.core.model.Kline
 import com.tradesim.app.core.model.OrderBook
-import com.tradesim.app.core.model.Ticker
 import java.math.BigDecimal
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -13,7 +11,6 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.isActive
@@ -21,11 +18,9 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.longOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -37,22 +32,6 @@ class BinanceStreamClient(
     private val json: Json,
 ) {
     private val wsBase = BuildConfig.BINANCE_WS_URL.trimEnd('/')
-
-    fun tickerStream(symbols: List<String>): Flow<Ticker> {
-        val streams = symbols
-            .map { it.trim().lowercase() }
-            .filter { it.isNotBlank() }
-            .distinct()
-        if (streams.isEmpty()) return emptyFlow()
-
-        val url = "$wsBase/stream?streams=" + streams.joinToString("/") { "$it@ticker" }
-        return reconnectFlow(url, ::parseTicker)
-    }
-
-    fun klineStream(symbol: String, interval: String): Flow<Kline> {
-        val url = "$wsBase/ws/${symbol.lowercase()}@kline_$interval"
-        return reconnectFlow(url, ::parseKline)
-    }
 
     fun depthStream(symbol: String, levels: Int = 20): Flow<OrderBook> {
         val normalized = symbol.uppercase()
@@ -123,35 +102,6 @@ class BinanceStreamClient(
     private fun payload(message: JsonObject): JsonObject =
         (message["data"] as? JsonObject) ?: message
 
-    private fun parseTicker(message: JsonObject): Ticker? {
-        val data = payload(message)
-        val symbol = data.string("s") ?: return null
-        return Ticker(
-            symbol = symbol,
-            lastPrice = data.decimal("c") ?: return null,
-            priceChange = data.decimal("p") ?: BigDecimal.ZERO,
-            priceChangePercent = data.decimal("P") ?: BigDecimal.ZERO,
-            highPrice = data.decimal("h") ?: BigDecimal.ZERO,
-            lowPrice = data.decimal("l") ?: BigDecimal.ZERO,
-            quoteVolume = data.decimal("q") ?: BigDecimal.ZERO,
-        )
-    }
-
-    private fun parseKline(message: JsonObject): Kline? {
-        val data = payload(message)
-        val kline = data["k"] as? JsonObject ?: return null
-        return Kline(
-            openTime = kline.long("t") ?: return null,
-            open = kline.decimal("o") ?: return null,
-            high = kline.decimal("h") ?: return null,
-            low = kline.decimal("l") ?: return null,
-            close = kline.decimal("c") ?: return null,
-            volume = kline.decimal("v") ?: BigDecimal.ZERO,
-            closeTime = kline.long("T") ?: 0L,
-            isClosed = kline["x"]?.jsonPrimitive?.booleanOrNull ?: false,
-        )
-    }
-
     private fun parseDepth(message: JsonObject, expectedSymbol: String): OrderBook? {
         val data = payload(message)
         val symbol = data.string("s")?.uppercase() ?: expectedSymbol
@@ -181,9 +131,6 @@ class BinanceStreamClient(
 
     private fun JsonObject.decimal(key: String): BigDecimal? =
         string(key)?.toBigDecimalOrNull()
-
-    private fun JsonObject.long(key: String): Long? =
-        this[key]?.jsonPrimitive?.longOrNull ?: string(key)?.toLongOrNull()
 
     private fun JsonElement.asDecimal(): BigDecimal? =
         jsonPrimitive.contentOrNull?.toBigDecimalOrNull()

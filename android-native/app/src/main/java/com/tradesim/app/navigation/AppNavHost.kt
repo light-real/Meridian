@@ -1,14 +1,17 @@
 package com.tradesim.app.navigation
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.ShowChart
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -21,6 +24,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -43,6 +48,9 @@ object Routes {
     const val HISTORY = "history"
     const val PROFILE = "profile"
     const val TRADE = "trade/{symbol}"
+
+    /** 从交易页打开的记录页，带返回按钮，不占底部 tab。 */
+    const val TRADE_HISTORY = "trade-history"
 
     fun trade(symbol: String): String = "trade/$symbol"
 }
@@ -77,33 +85,44 @@ fun AppRoot() {
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
             if (showBottomBar) {
-                NavigationBar(
-                    modifier = Modifier.navigationBarsPadding(),
-                    containerColor = CsColors.Surface,
-                    tonalElevation = 0.dp,
-                ) {
-                    bottomItems.forEach { item ->
-                        NavigationBarItem(
-                            selected = currentRoute == item.route,
-                            onClick = {
-                                if (currentRoute != item.route) {
-                                    navController.navigate(item.route) {
-                                        popUpTo(Routes.MARKET) { saveState = true }
-                                        launchSingleTop = true
-                                        restoreState = true
+                Column {
+                    HorizontalDivider(color = CsColors.Border)
+                    NavigationBar(
+                        modifier = Modifier.navigationBarsPadding(),
+                        containerColor = CsColors.Surface,
+                        tonalElevation = 0.dp,
+                    ) {
+                        bottomItems.forEach { item ->
+                            NavigationBarItem(
+                                selected = currentRoute == item.route,
+                                onClick = {
+                                    if (currentRoute != item.route) {
+                                        navController.navigate(item.route) {
+                                            popUpTo(
+                                                navController.graph.findStartDestination().id,
+                                            ) { saveState = true }
+                                            launchSingleTop = true
+                                            restoreState = true
+                                        }
                                     }
-                                }
-                            },
-                            icon = { Icon(imageVector = item.icon, contentDescription = item.label) },
-                            label = { Text(text = item.label) },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = CsColors.Primary,
-                                selectedTextColor = CsColors.Primary,
-                                unselectedIconColor = CsColors.TextMuted,
-                                unselectedTextColor = CsColors.TextMuted,
-                                indicatorColor = CsColors.Primary.copy(alpha = 0.12f),
-                            ),
-                        )
+                                },
+                                icon = {
+                                    Icon(
+                                        imageVector = item.icon,
+                                        contentDescription = item.label,
+                                        modifier = Modifier.size(22.dp),
+                                    )
+                                },
+                                label = { Text(text = item.label, fontSize = 11.sp) },
+                                colors = NavigationBarItemDefaults.colors(
+                                    selectedIconColor = CsColors.Primary,
+                                    selectedTextColor = CsColors.Primary,
+                                    unselectedIconColor = CsColors.TextMuted,
+                                    unselectedTextColor = CsColors.TextMuted,
+                                    indicatorColor = CsColors.Primary.copy(alpha = 0.1f),
+                                ),
+                            )
+                        }
                     }
                 }
             }
@@ -137,6 +156,9 @@ fun AppRoot() {
             composable(Routes.HISTORY) {
                 HistoryScreen()
             }
+            composable(Routes.TRADE_HISTORY) {
+                HistoryScreen(onBack = { navController.popBackStack() })
+            }
             composable(Routes.PROFILE) {
                 ProfileScreen(
                     onOpenAuth = { navController.navigate(Routes.AUTH) },
@@ -154,6 +176,7 @@ fun AppRoot() {
                 TradeScreen(
                     symbol = entry.arguments?.getString("symbol").orEmpty(),
                     onBack = { navController.popBackStack() },
+                    onOpenHistory = { navController.navigate(Routes.TRADE_HISTORY) },
                 )
             }
         }

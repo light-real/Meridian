@@ -1,5 +1,6 @@
 package com.tradesim.app.feature.market
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -28,6 +29,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -39,7 +41,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -71,6 +72,7 @@ fun MarketScreen(onOpenTrade: (String) -> Unit) {
                 marketRepository = container.marketRepository,
                 accountRepository = container.accountRepository,
                 favoritesRepository = container.favoritesRepository,
+                marketDataHub = container.marketDataHub,
             )
         },
     )
@@ -190,64 +192,50 @@ private fun MarketHero(state: MarketUiState) {
     val pnl = state.account.totalPnl(state.marks)
     val pnlColor = if (pnl.signum() >= 0) CsColors.Up else CsColors.Down
 
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(22.dp))
-            .background(
-                Brush.linearGradient(
-                    colors = listOf(Color(0xFF0D1729), Color(0xFF111827), Color(0xFF0B1220)),
-                ),
-            )
-            .padding(20.dp),
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        color = CsColors.Surface,
+        border = BorderStroke(1.dp, CsColors.Border),
     ) {
-        Column {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    Brush.linearGradient(
+                        colors = listOf(CsColors.HeroStart, CsColors.HeroEnd),
+                    ),
+                )
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.Top,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "模拟账户",
+                    text = "总资产 (USDT)",
                     color = CsColors.TextMuted,
                     fontSize = 11.sp,
                 )
+                Spacer(modifier = Modifier.height(5.dp))
                 Text(
-                    text = "USDT 永续",
-                    color = CsColors.Primary.copy(alpha = 0.8f),
-                    fontSize = 10.sp,
+                    text = totalAssets.money(2),
+                    color = CsColors.TextPrimary,
+                    fontSize = 25.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = (-0.4).sp,
                 )
             }
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = "总资产（USDT）",
-                color = CsColors.TextFaint,
-                fontSize = 11.sp,
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = totalAssets.money(2),
-                color = CsColors.TextPrimary,
-                fontSize = 34.sp,
-                fontWeight = FontWeight.Bold,
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    text = "未实现盈亏 ",
+                    text = "未实现盈亏",
                     color = CsColors.TextMuted,
                     fontSize = 11.sp,
                 )
+                Spacer(modifier = Modifier.height(7.dp))
                 Text(
                     text = pnl.signed(2),
                     color = pnlColor,
-                    fontSize = 13.sp,
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    text = " USDT",
-                    color = CsColors.TextMuted,
-                    fontSize = 11.sp,
                 )
             }
         }
@@ -309,7 +297,7 @@ private fun MarketCoinRow(
             Icon(
                 imageVector = if (row.favorite) Icons.Filled.Star else Icons.Outlined.StarBorder,
                 contentDescription = if (row.favorite) "取消自选" else "添加自选",
-                tint = if (row.favorite) Color(0xFFFBBF24) else CsColors.TextFaint,
+                tint = if (row.favorite) CsColors.Star else CsColors.TextFaint,
                 modifier = Modifier.size(20.dp),
             )
         }

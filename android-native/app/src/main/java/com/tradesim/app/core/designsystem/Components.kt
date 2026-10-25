@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
@@ -48,6 +49,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -113,16 +115,17 @@ fun CsTopBar(
 @Composable
 fun CsCard(
     modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = PaddingValues(16.dp),
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(16.dp),
         color = CsColors.Surface,
         border = BorderStroke(1.dp, CsColors.Border),
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(contentPadding),
             content = content,
         )
     }
@@ -140,20 +143,26 @@ fun CsPrimaryButton(
         onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
-            .height(52.dp),
+            .height(50.dp),
         enabled = enabled,
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(12.dp),
+        elevation = ButtonDefaults.buttonElevation(
+            defaultElevation = 0.dp,
+            pressedElevation = 0.dp,
+            disabledElevation = 0.dp,
+        ),
         colors = ButtonDefaults.buttonColors(
             containerColor = color,
-            contentColor = Color.White,
-            disabledContainerColor = color.copy(alpha = 0.25f),
-            disabledContentColor = Color.White.copy(alpha = 0.45f),
+            contentColor = CsColors.OnPrimary,
+            disabledContainerColor = color.copy(alpha = 0.28f),
+            disabledContentColor = CsColors.OnPrimary.copy(alpha = 0.6f),
         ),
     ) {
         Text(
             text = text,
             fontWeight = FontWeight.SemiBold,
             fontSize = 15.sp,
+            letterSpacing = 0.3.sp,
         )
     }
 }
@@ -227,6 +236,10 @@ fun CsTextField(
     )
 }
 
+/**
+ * 分段选择器。默认是「标签」样式：选中项是白色胶囊 + 主色文字；
+ * filled = true 时选中项直接填充 activeColor（用于做多 / 做空）。
+ */
 @Composable
 fun CsSegmented(
     options: List<String>,
@@ -234,29 +247,44 @@ fun CsSegmented(
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
     activeColor: Color = CsColors.Primary,
+    filled: Boolean = false,
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .background(CsColors.SurfaceVariant)
-            .padding(4.dp),
+            .padding(3.dp),
     ) {
         options.forEachIndexed { index, label ->
             val selected = index == selectedIndex
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(if (selected) activeColor.copy(alpha = 0.16f) else Color.Transparent)
+                    .then(
+                        if (selected && filled) {
+                            Modifier.background(activeColor, RoundedCornerShape(9.dp))
+                        } else if (selected) {
+                            Modifier
+                                .background(CsColors.Surface, RoundedCornerShape(9.dp))
+                                .border(1.dp, CsColors.Border, RoundedCornerShape(9.dp))
+                        } else {
+                            Modifier
+                        },
+                    )
+                    .clip(RoundedCornerShape(9.dp))
                     .clickable { onSelect(index) }
                     .padding(vertical = 9.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
                     text = label,
-                    color = if (selected) activeColor else CsColors.TextMuted,
-                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                    color = when {
+                        selected && filled -> CsColors.OnPrimary
+                        selected -> activeColor
+                        else -> CsColors.TextMuted
+                    },
+                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
                     fontSize = 13.sp,
                 )
             }
@@ -277,17 +305,17 @@ fun CsChip(
             .clip(RoundedCornerShape(50))
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(50),
-        color = if (selected) activeColor.copy(alpha = 0.16f) else CsColors.SurfaceVariant,
+        color = if (selected) activeColor.copy(alpha = 0.12f) else CsColors.SurfaceVariant,
         border = BorderStroke(
             1.dp,
-            if (selected) activeColor.copy(alpha = 0.5f) else CsColors.Border,
+            if (selected) activeColor.copy(alpha = 0.45f) else CsColors.Border,
         ),
     ) {
         Text(
             text = text,
-            color = if (selected) activeColor else CsColors.TextMuted,
+            color = if (selected) activeColor else CsColors.TextSecondary,
             fontSize = 11.sp,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
         )
     }
@@ -327,6 +355,132 @@ fun CsSectionTitle(text: String, modifier: Modifier = Modifier) {
         fontWeight = FontWeight.SemiBold,
         modifier = modifier,
     )
+}
+
+/** 下划线式的页签（仓位 / 记录）。 */
+@Composable
+fun CsUnderlineTabs(
+    options: List<String>,
+    selectedIndex: Int,
+    onSelect: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+    activeColor: Color = CsColors.Primary,
+) {
+    Row(modifier = modifier.fillMaxWidth()) {
+        options.forEachIndexed { index, label ->
+            val selected = index == selectedIndex
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable { onSelect(index) }
+                    .padding(top = 10.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    text = label,
+                    color = if (selected) CsColors.TextPrimary else CsColors.TextMuted,
+                    fontSize = 13.sp,
+                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                    maxLines = 1,
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Box(
+                    modifier = Modifier
+                        .width(22.dp)
+                        .height(2.dp)
+                        .background(
+                            color = if (selected) activeColor else Color.Transparent,
+                            shape = RoundedCornerShape(1.dp),
+                        ),
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+        }
+    }
+}
+
+/** 方形表单标签，用于「逐仓 / 10x / 市价」这类紧凑选择。 */
+@Composable
+fun CsFieldChip(
+    text: String,
+    modifier: Modifier = Modifier,
+    selected: Boolean = false,
+    activeColor: Color = CsColors.Primary,
+    onClick: (() -> Unit)? = null,
+) {
+    Box(
+        modifier = modifier
+            .height(32.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(if (selected) activeColor.copy(alpha = 0.12f) else CsColors.SurfaceVariant)
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .padding(horizontal = 10.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = text,
+            color = if (selected) activeColor else CsColors.TextSecondary,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+        )
+    }
+}
+
+/** 菱形刻度条，用来快速选 25% / 50% / 75% / 100%。 */
+@Composable
+fun CsDiamondSlider(
+    count: Int,
+    selectedIndex: Int,
+    onSelect: (Int) -> Unit,
+    activeColor: Color,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(30.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 15.dp)
+                .height(1.dp)
+                .align(Alignment.Center)
+                .background(CsColors.Border),
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            repeat(count) { index ->
+                val selected = index == selectedIndex
+                Box(
+                    modifier = Modifier
+                        .size(30.dp)
+                        .clickable { onSelect(index) },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(if (selected) 11.dp else 9.dp)
+                            .rotate(45f)
+                            .then(
+                                if (selected) {
+                                    Modifier.background(activeColor, RoundedCornerShape(2.dp))
+                                } else {
+                                    Modifier.background(
+                                        CsColors.Surface,
+                                        RoundedCornerShape(2.dp),
+                                    ).border(1.dp, CsColors.BorderStrong, RoundedCornerShape(2.dp))
+                                },
+                            ),
+                    )
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -412,12 +566,13 @@ fun CoinAvatar(
     modifier: Modifier = Modifier,
 ) {
     val color = coinColor(baseAsset)
+    val bgAlpha = if (CsColors.IsDark) 0.18f else 0.12f
     Box(
         modifier = modifier
             .size(size)
             .clip(CircleShape)
-            .background(color.copy(alpha = 0.14f))
-            .border(1.dp, color.copy(alpha = 0.28f), CircleShape),
+            .background(color.copy(alpha = bgAlpha))
+            .border(1.dp, color.copy(alpha = 0.26f), CircleShape),
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -477,8 +632,8 @@ fun FlashPriceText(
         overflow = TextOverflow.Ellipsis,
         modifier = modifier
             .clip(RoundedCornerShape(5.dp))
-            .background(flashColor.copy(alpha = 0.16f * flash.value))
-            .padding(horizontal = 2.dp, vertical = 1.dp),
+            .background(flashColor.copy(alpha = 0.22f * flash.value))
+            .padding(horizontal = 3.dp, vertical = 1.dp),
     )
 }
 
@@ -496,7 +651,7 @@ fun ChangeBadge(
         fontWeight = FontWeight.SemiBold,
         modifier = modifier
             .clip(RoundedCornerShape(6.dp))
-            .background(color.copy(alpha = 0.12f))
+            .background(if (up) CsColors.UpSoft else CsColors.DownSoft)
             .padding(horizontal = 6.dp, vertical = 2.dp),
     )
 }
@@ -512,7 +667,7 @@ fun SideBadge(side: Side, leverage: Int, modifier: Modifier = Modifier) {
         fontWeight = FontWeight.SemiBold,
         modifier = modifier
             .clip(RoundedCornerShape(6.dp))
-            .background(color.copy(alpha = 0.12f))
+            .background(if (long) CsColors.UpSoft else CsColors.DownSoft)
             .padding(horizontal = 6.dp, vertical = 2.dp),
     )
 }
@@ -557,13 +712,18 @@ fun MoneyText(
 private fun coinColor(baseAsset: String): Color = when (baseAsset.uppercase()) {
     "BTC" -> Color(0xFFF7931A)
     "ETH" -> Color(0xFF627EEA)
-    "BNB" -> Color(0xFFF3BA2F)
+    "BNB" -> Color(0xFFE0A615)
     "SOL" -> Color(0xFF9945FF)
-    "XRP" -> Color(0xFF00AAE4)
-    "DOGE" -> Color(0xFFC2A633)
+    "XRP" -> Color(0xFF0086B8)
+    "DOGE" -> Color(0xFFB08C1E)
     "ADA" -> Color(0xFF0033AD)
     "AVAX" -> Color(0xFFE84142)
     "DOT" -> Color(0xFFE6007A)
     "LINK" -> Color(0xFF2A5ADA)
-    else -> Color(0xFF60A5FA)
+    "TRX" -> Color(0xFFD6342F)
+    "LTC" -> Color(0xFF6A7E8C)
+    "TON" -> Color(0xFF0098EA)
+    "SUI" -> Color(0xFF4DA2FF)
+    "APT" -> Color(0xFF2A2A2A)
+    else -> Color(0xFF3B82F6)
 }
