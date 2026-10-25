@@ -5,19 +5,11 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
+    <!-- 品牌字标 M：一笔画成，圆角收尾，留足自适应图标安全区 -->
     <path
-        android:fillColor="#3B82F6"
-        android:pathData="M54,14 L82,30 L82,62 L54,78 L26,62 L26,30 Z" />
-    <path
-        android:fillColor="#0B1220"
-        android:pathData="M54,22 L74,34 L74,58 L54,70 L34,58 L34,34 Z" />
-    <path
-        android:fillColor="#10B981"
-        android:pathData="M44,42 h6 v14 h-6 z" />
-    <path
-        android:fillColor="#EF4444"
-        android:pathData="M58,36 h6 v20 h-6 z" />
-    <path
-        android:fillColor="#E2E8F0"
-        android:pathData="M46,38 h2 v4 h-2 z M46,56 h2 v4 h-2 z M60,32 h2 v4 h-2 z M60,56 h2 v4 h-2 z" />
+        android:pathData="M33,70 L33,38 L54,56 L75,38 L75,70"
+        android:strokeColor="#FFFFFF"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="9" />
 </vector>

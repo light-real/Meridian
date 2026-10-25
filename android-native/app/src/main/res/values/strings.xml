@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">TradeSim</string>
+    <string name="app_name">Meridian</string>
 
     <string name="tab_market">行情</string>
     <string name="tab_positions">持仓</string>
@@ -60,7 +60,7 @@
     <string name="positions_title">持仓</string>
     <string name="positions_total_margin">占用保证金</string>
     <string name="positions_total_upnl">未实现盈亏</string>
-    <string name="positions_empty">暂无持仓，去行情页开一笔模拟单</string>
+    <string name="positions_empty">暂无持仓，去行情页开一笔交易单</string>
 
     <string name="history_title">交易记录</string>
     <string name="history_all">全部</string>
@@ -90,7 +90,7 @@
     <string name="profile_logout_hint">退出后本机数据将被清空</string>
     <string name="profile_about">关于</string>
     <string name="profile_version">版本 %1$s</string>
-    <string name="profile_risk_disclaimer">模拟交易，不涉及真实资金，不构成任何投资建议</string>
+    <string name="profile_risk_disclaimer">本地交易，不涉及真实资金，不构成任何投资建议</string>
 
     <string name="auth_login">登录</string>
     <string name="auth_register">注册</string>

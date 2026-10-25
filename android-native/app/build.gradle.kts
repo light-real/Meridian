@@ -1,4 +1,4 @@
-import java.util.Properties
+﻿import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -23,11 +23,11 @@ val keystoreProps = Properties().apply {
 }
 
 android {
-    namespace = "com.tradesim.app"
+    namespace = "com.meridian.app"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.tradesim.app"
+        applicationId = "com.meridian.app"
         minSdk = 26
         targetSdk = 36
         versionCode = 1
@@ -40,6 +40,9 @@ android {
         buildConfigField("String", "SUPABASE_ANON_KEY", "\"${localProp("SUPABASE_ANON_KEY")}\"")
         buildConfigField("String", "BINANCE_REST_URL", "\"https://fapi.binance.com/\"")
         buildConfigField("String", "BINANCE_WS_URL", "\"wss://fstream.binance.com\"")
+        buildConfigField("String", "A_SHARE_API_URL", "\"https://gbrilliant.xyz/a-share\"")
+        buildConfigField("String", "TRADE_SYNC_URL", "\"https://gbrilliant.xyz/trading/sync.php\"")
+        buildConfigField("String", "TRADE_SYNC_TOKEN", "\"${localProp("TRADE_SYNC_TOKEN")}\"")
     }
 
     signingConfigs {
@@ -60,10 +63,7 @@ android {
             isMinifyEnabled = false
         }
         /**
-         * 和 debug 同包名、同签名（可直接覆盖安装、保留数据），
-         * 但不带 debuggable 标记，ART 会走 AOT 编译，Compose 帧耗时能降一大截。
-         * 日常使用装这个包，需要调试时再装 debug。
-         */
+         * 鍜?debug 鍚屽寘鍚嶃€佸悓绛惧悕锛堝彲鐩存帴瑕嗙洊瀹夎銆佷繚鐣欐暟鎹級锛?         * 浣嗕笉甯?debuggable 鏍囪锛孉RT 浼氳蛋 AOT 缂栬瘧锛孋ompose 甯ц€楁椂鑳介檷涓€澶ф埅銆?         * 鏃ュ父浣跨敤瑁呰繖涓寘锛岄渶瑕佽皟璇曟椂鍐嶈 debug銆?         */
         create("perf") {
             initWith(getByName("debug"))
             isDebuggable = false

@@ -9,11 +9,11 @@
     kotlinx.serialization.KSerializer serializer(...);
 }
 
--keep,includedescriptorclasses class com.tradesim.app.**$$serializer { *; }
--keepclassmembers class com.tradesim.app.** {
+-keep,includedescriptorclasses class com.meridian.app.**$$serializer { *; }
+-keepclassmembers class com.meridian.app.** {
     *** Companion;
 }
--keepclasseswithmembers class com.tradesim.app.** {
+-keepclasseswithmembers class com.meridian.app.** {
     kotlinx.serialization.KSerializer serializer(...);
 }
 

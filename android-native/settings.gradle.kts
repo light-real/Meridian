@@ -20,5 +20,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "TradeSimAndroid"
+rootProject.name = "MeridianAndroid"
 include(":app")
