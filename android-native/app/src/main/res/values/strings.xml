@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">CryptoSim</string>
+
+    <string name="tab_market">行情</string>
+    <string name="tab_positions">持仓</string>
+    <string name="tab_history">记录</string>
+    <string name="tab_profile">我的</string>
+
+    <string name="common_loading">加载中…</string>
+    <string name="common_retry">重试</string>
+    <string name="common_cancel">取消</string>
+    <string name="common_confirm">确认</string>
+    <string name="common_close">关闭</string>
+    <string name="common_back">返回</string>
+    <string name="common_search">搜索</string>
+    <string name="common_empty">暂无数据</string>
+
+    <string name="market_title">行情</string>
+    <string name="market_favorite">自选</string>
+    <string name="market_all">全部</string>
+    <string name="market_search_hint">搜索币种，如 BTC</string>
+    <string name="market_total_assets">总资产（USDT）</string>
+    <string name="market_today_pnl">未实现盈亏</string>
+    <string name="market_no_favorite">暂无自选，点击右侧星标添加</string>
+
+    <string name="trade_long">做多</string>
+    <string name="trade_short">做空</string>
+    <string name="trade_leverage">杠杆倍数</string>
+    <string name="trade_margin">保证金</string>
+    <string name="trade_notional">名义价值</string>
+    <string name="trade_amount">开仓金额</string>
+    <string name="trade_available">可用余额</string>
+    <string name="trade_required_margin">所需保证金</string>
+    <string name="trade_quantity">开仓数量</string>
+    <string name="trade_fee">手续费</string>
+    <string name="trade_liq_price">预计强平价</string>
+    <string name="trade_submit_long">做多</string>
+    <string name="trade_submit_short">做空</string>
+    <string name="trade_positions">当前持仓</string>
+    <string name="trade_no_positions">暂无持仓</string>
+    <string name="trade_close_position">平仓</string>
+    <string name="trade_close_long">平多</string>
+    <string name="trade_close_short">平空</string>
+    <string name="trade_close_amount">平仓数量</string>
+    <string name="trade_close_max">最多可平</string>
+    <string name="trade_close_preview">预计结算</string>
+    <string name="trade_close_pnl">预计盈亏</string>
+    <string name="trade_close_fee">平仓手续费</string>
+    <string name="trade_close_return">返还保证金</string>
+    <string name="trade_select_symbol">选择交易对</string>
+    <string name="trade_interval">周期</string>
+    <string name="trade_indicator_ma5">MA5</string>
+    <string name="trade_indicator_ma10">MA10</string>
+    <string name="trade_indicator_volume">成交量</string>
+    <string name="trade_orderbook">盘口</string>
+    <string name="trade_orderbook_empty">盘口加载中…</string>
+    <string name="trade_risk_warning">高杠杆会放大收益和亏损，请控制风险</string>
+
+    <string name="positions_title">持仓</string>
+    <string name="positions_total_margin">占用保证金</string>
+    <string name="positions_total_upnl">未实现盈亏</string>
+    <string name="positions_empty">暂无持仓，去行情页开一笔模拟单</string>
+
+    <string name="history_title">交易记录</string>
+    <string name="history_all">全部</string>
+    <string name="history_open">开仓</string>
+    <string name="history_close">平仓</string>
+    <string name="history_empty">暂无交易记录</string>
+    <string name="history_open_long">开多</string>
+    <string name="history_open_short">开空</string>
+    <string name="history_close_long">平多</string>
+    <string name="history_close_short">平空</string>
+    <string name="history_liquidation_long">强平多</string>
+    <string name="history_liquidation_short">强平空</string>
+
+    <string name="profile_title">我的</string>
+    <string name="profile_guest">游客模式</string>
+    <string name="profile_guest_hint">数据仅保存在本机，登录后可同步到云端</string>
+    <string name="profile_login">登录 / 注册</string>
+    <string name="profile_total_assets">总资产</string>
+    <string name="profile_total_pnl">累计盈亏</string>
+    <string name="profile_sync_now">立即同步</string>
+    <string name="profile_synced">已同步到云端</string>
+    <string name="profile_syncing">同步中…</string>
+    <string name="profile_sync_failed">同步失败</string>
+    <string name="profile_reset">重置账户</string>
+    <string name="profile_reset_hint">清空持仓和记录，余额恢复为 10,000 USDT</string>
+    <string name="profile_logout">退出登录</string>
+    <string name="profile_logout_hint">退出后本机数据将被清空</string>
+    <string name="profile_about">关于</string>
+    <string name="profile_version">版本 %1$s</string>
+    <string name="profile_risk_disclaimer">模拟交易，不涉及真实资金，不构成任何投资建议</string>
+
+    <string name="auth_login">登录</string>
+    <string name="auth_register">注册</string>
+    <string name="auth_email">邮箱</string>
+    <string name="auth_password">密码</string>
+    <string name="auth_email_hint">请输入邮箱</string>
+    <string name="auth_password_hint">请输入密码（至少 6 位）</string>
+    <string name="auth_login_action">登录</string>
+    <string name="auth_register_action">注册</string>
+    <string name="auth_guest">暂不登录，以游客模式使用</string>
+    <string name="auth_email_invalid">请输入有效的邮箱地址</string>
+    <string name="auth_password_short">密码至少需要 6 位</string>
+    <string name="auth_empty_fields">邮箱和密码不能为空</string>
+    <string name="auth_login_success">登录成功</string>
+    <string name="auth_register_success">注册成功</string>
+    <string name="auth_register_confirm">注册成功，请到邮箱确认后再登录</string>
+    <string name="auth_config_missing">未配置 Supabase，当前只能使用游客模式</string>
+    <string name="auth_guest_confirm_title">游客模式</string>
+    <string name="auth_guest_confirm_message">游客模式下数据仅保存在本机，更换设备或清除数据后将丢失。</string>
+
+    <string name="error_network">网络异常，请检查网络后重试</string>
+    <string name="error_unknown">操作失败，请稍后重试</string>
+    <string name="error_login_expired">登录已过期，请重新登录</string>
+    <string name="error_insufficient_balance">可用余额不足</string>
+    <string name="error_opposite_position">该币种已有反向持仓，请先平仓</string>
+    <string name="error_leverage_mismatch">同方向加仓请使用相同杠杆</string>
+    <string name="error_invalid_amount">请输入有效金额</string>
+    <string name="error_min_notional">金额低于最小下单金额</string>
+    <string name="error_position_not_found">持仓不存在</string>
+    <string name="error_quantity_exceeds">平仓数量超过持仓，已按最大可平数量处理</string>
+    <string name="error_liquidated">仓位已触发强制平仓</string>
+</resources>

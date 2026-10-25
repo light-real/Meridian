@@ -1,0 +1,32 @@
+# Windows
+[Dd]esktop.ini
+Thumbs.db
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+
+# Node.js
+node_modules/
+
+# Android / Gradle
+.gradle/
+.kotlin/
+build/
+local.properties
+keystore.properties
+*.jks
+*.keystore
+.idea/
+*.iml
+
+# Build outputs / archives
+*.apk
+*.aab
+# 根目录的正式发布包随仓库分发
+!CryptoSim-*-release.apk
+__MACOSX/
