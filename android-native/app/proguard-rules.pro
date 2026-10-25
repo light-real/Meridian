@@ -9,11 +9,11 @@
     kotlinx.serialization.KSerializer serializer(...);
 }
 
--keep,includedescriptorclasses class com.cryptosim.app.**$$serializer { *; }
--keepclassmembers class com.cryptosim.app.** {
+-keep,includedescriptorclasses class com.tradesim.app.**$$serializer { *; }
+-keepclassmembers class com.tradesim.app.** {
     *** Companion;
 }
--keepclasseswithmembers class com.cryptosim.app.** {
+-keepclasseswithmembers class com.tradesim.app.** {
     kotlinx.serialization.KSerializer serializer(...);
 }
 

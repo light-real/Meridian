@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">CryptoSim</string>
+    <string name="app_name">TradeSim</string>
 
     <string name="tab_market">行情</string>
     <string name="tab_positions">持仓</string>

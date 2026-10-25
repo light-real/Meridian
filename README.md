@@ -9,21 +9,21 @@
 
 | 市场 | 状态 | 行情来源 |
 |------|------|----------|
-| 加密货币 · USDT 永续合约 | 已实现，v1.0.0 | Binance USDⓈ-M 公开接口 |
+| 加密货币 · USDT 永续合约 | 已实现，开发中 | Binance USDⓈ-M 公开接口 |
 | A 股 · 沪深 | 规划中 | 待定 |
 | 美股 | 规划中 | 待定 |
 | 港股 | 规划中 | 待定 |
 
-当前版本只实现了加密货币，所以 App 名和包名还是 `CryptoSim` / `com.cryptosim.app`；股票市场接入后再统一到 TradeSim 品牌下。市场差异用 Tab 区分，不拆成多个包。
+当前版本只实现了加密货币，功能还在打磨，暂未发布安装包。App 已按 TradeSim 命名，包名 `com.tradesim.app`；后续股票市场作为新的 Tab 加进同一个 App，不拆包、不另发安装包。
 
 ## 当前实现：加密货币
 
 加密货币部分是一个本地优先的合约模拟盘：行情、K 线、盘口来自 Binance USDⓈ-M 永续合约公开接口，下单和盈亏全部在本地计算。适合用来练习杠杆、仓位和强平，不需要注册交易所账户，也不会产生真实资金往来。
 
-- 当前版本：**1.0.0**（versionCode 1）
-- 包名：`com.cryptosim.app`
+- 当前版本：**1.0.0**（versionCode 1，开发中）
+- 包名：`com.tradesim.app`
 - 系统要求：Android 8.0（API 26）及以上
-- 安装包：根目录 `CryptoSim-v1.0.0-release.apk`
+- 安装包：暂未发布，需要的话按下方「构建」自行编译
 
 首次启动可选择游客模式（仅本机）或登录同步；游客数据只存本机，登录后可通过 Supabase 同步到云端。
 
@@ -59,7 +59,7 @@ Android 工程位于 `android-native/`：
 
 ```
 android-native/
-├── app/src/main/java/com/cryptosim/app/
+├── app/src/main/java/com/tradesim/app/
 │   ├── core/
 │   │   ├── data/          # Room、Binance REST/WS、Supabase、会话加密
 │   │   ├── domain/        # TradingEngine、OrderCalculator、格式化
@@ -218,15 +218,15 @@ gradlew.bat assembleRelease
 Release 签名读取 `android-native/keystore.properties`：
 
 ```properties
-storeFile=../cryptosim-release.keystore
+storeFile=../tradesim-release.keystore
 storePassword=******
-keyAlias=cryptosim
+keyAlias=tradesim
 keyPassword=******
 ```
 
 `storeFile` 相对于 `android-native/`，因此指向项目根目录的 keystore。缺失该文件时，release 构建不会使用正式签名。
 
-> **不要把 `cryptosim-release.keystore`、`keystore.properties`、`local.properties` 提交到仓库或随安装包外发。** 拿到 keystore 和密码的人可以签出同包名的“更新版”。这些文件已在 `.gitignore` 中排除。
+> **不要把 `tradesim-release.keystore`、`keystore.properties`、`local.properties` 提交到仓库或随安装包外发。** 拿到 keystore 和密码的人可以签出同包名的“更新版”。这些文件已在 `.gitignore` 中排除。
 
 ## 测试
 

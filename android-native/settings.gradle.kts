@@ -20,5 +20,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "CryptoSimAndroid"
+rootProject.name = "TradeSimAndroid"
 include(":app")

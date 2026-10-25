@@ -23,11 +23,11 @@ val keystoreProps = Properties().apply {
 }
 
 android {
-    namespace = "com.cryptosim.app"
+    namespace = "com.tradesim.app"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.cryptosim.app"
+        applicationId = "com.tradesim.app"
         minSdk = 26
         targetSdk = 36
         versionCode = 1

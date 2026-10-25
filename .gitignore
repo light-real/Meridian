@@ -28,5 +28,5 @@ keystore.properties
 *.apk
 *.aab
 # 根目录的正式发布包随仓库分发
-!CryptoSim-*-release.apk
+!TradeSim-*-release.apk
 __MACOSX/
