@@ -81,7 +81,7 @@ class BinanceApi(
                 val result = parsed.symbols
                     .asSequence()
                     .filter {
-                        it.contractType == "PERPETUAL" &&
+                        (it.contractType == "PERPETUAL" || it.contractType == "TRADIFI_PERPETUAL") &&
                             it.quoteAsset == "USDT" &&
                             it.status == "TRADING"
                     }

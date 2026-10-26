@@ -32,8 +32,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -57,6 +55,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.meridian.app.core.designsystem.ChangeBadge
 import com.meridian.app.core.designsystem.CsCard
+import com.meridian.app.core.designsystem.CsToast
 import com.meridian.app.core.designsystem.CsColors
 import com.meridian.app.core.designsystem.CsDiamondSlider
 import com.meridian.app.core.designsystem.CsDivider
@@ -109,22 +108,20 @@ fun TradeScreen(
         },
     )
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val snackbarHostState = remember { SnackbarHostState() }
     val haptic = LocalHapticFeedback.current
     var showConfirmOrder by remember { mutableStateOf(false) }
     var tabs by remember { mutableStateOf(0) }
 
-    LaunchedEffect(state.notice) {
-        state.notice?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.consumeNotice()
-        }
-    }
 
     Scaffold(
         containerColor = CsColors.Background,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = {
+            CsToast(
+                message = state.notice,
+                onDismiss = viewModel::consumeNotice,
+            )
+        },
     ) { _ ->
         val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
         Column(modifier = Modifier.fillMaxSize()) {
@@ -342,7 +339,7 @@ private fun OrderFormPanel(
     if (showLeverageSheet) {
         LeverageSheet(
             current = state.leverage,
-            cash = state.account.cash,
+            cash = state.account.availableCash(),
             onDismiss = { showLeverageSheet = false },
             onConfirm = { value ->
                 viewModel.setLeverage(value)
@@ -514,7 +511,7 @@ private fun OrderFormPanel(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = "可用 " + availableCash(state).money(2),
+                text = "可用 " + state.account.availableCash().money(2),
                 color = CsColors.TextMuted,
                 fontSize = 11.sp,
             )
@@ -558,7 +555,7 @@ private fun OrderFormPanel(
             )
             Spacer(modifier = Modifier.weight(1f))
             Text(
-                text = maxQuantityText(state, baseAsset) + " " + baseAsset,
+                text = maxNotionalText(state),
                 color = CsColors.TextSecondary,
                 style = CsNumericTextStyle.copy(fontSize = 12.sp),
             )
@@ -597,26 +594,12 @@ private fun OrderFormPanel(
     }
 }
 
-private fun maxQuantityText(state: TradeUiState, baseAsset: String): String {
-    val priceValue = state.ticker?.lastPrice ?: return "--"
-    if (priceValue.signum() <= 0) return "--"
-    val maxNotional = TradingEngine.maxNotional(availableCash(state), state.leverage)
-    return maxNotional
-        .divide(priceValue, 8, RoundingMode.DOWN)
-        .quantity(state.symbolInfo?.quantityPrecision ?: 3)
+private fun maxNotionalText(state: TradeUiState): String {
+    if (state.ticker == null) return "--"
+    val maxNotional = TradingEngine.maxNotional(state.account.availableCash(), state.leverage)
+    return maxNotional.money(2) + " USDT"
 }
 
-/** 扣掉全仓已占用保证金后的可用余额。 */
-private fun availableCash(state: TradeUiState): BigDecimal {
-    val crossUsed = if (state.marginMode == MarginMode.CROSS) {
-        state.account.positions
-            .filter { it.marginMode == MarginMode.CROSS && it.symbol != state.symbol }
-            .fold(BigDecimal.ZERO) { acc, position -> acc.add(position.margin) }
-    } else {
-        BigDecimal.ZERO
-    }
-    return state.account.cash.subtract(crossUsed).max(BigDecimal.ZERO)
-}
 
 @Composable
 private fun OrderBookPanel(
@@ -1325,7 +1308,7 @@ private fun PositionsSection(
         MarginDialog(
             marked = marked,
             priceScale = state.symbolInfo?.pricePrecision ?: 2,
-            available = state.account.cash,
+            available = state.account.availableCash(),
             onDismiss = { marginPositionId = null },
             onConfirm = { delta ->
                 viewModel.adjustMargin(marked.position.id, delta, marked.markPrice)

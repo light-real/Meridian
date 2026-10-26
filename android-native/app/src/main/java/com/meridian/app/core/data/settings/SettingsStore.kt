@@ -17,6 +17,16 @@ class SettingsStore(context: Context) {
     private val _monitorEnabled = MutableStateFlow(prefs.getBoolean(KEY_MONITOR, true))
     val monitorEnabled: StateFlow<Boolean> = _monitorEnabled.asStateFlow()
 
+    private val _themeMode = MutableStateFlow(
+        ThemeMode.fromKey(prefs.getString(KEY_THEME_MODE, null)),
+    )
+    val themeMode: StateFlow<ThemeMode> = _themeMode.asStateFlow()
+
+    fun setThemeMode(value: ThemeMode) {
+        prefs.edit().putString(KEY_THEME_MODE, value.name).apply()
+        _themeMode.value = value
+    }
+
     fun setMonitorEnabled(value: Boolean) {
         prefs.edit().putBoolean(KEY_MONITOR, value).apply()
         _monitorEnabled.value = value
@@ -97,5 +107,6 @@ class SettingsStore(context: Context) {
         const val KEY_COLOR_CONVENTION = "color_convention"
         const val KEY_FUNDING_PREFIX = "funding_settled_"
         const val KEY_MONITOR = "background_monitor"
+        const val KEY_THEME_MODE = "theme_mode"
     }
 }

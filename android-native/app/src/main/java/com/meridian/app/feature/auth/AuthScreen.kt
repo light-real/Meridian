@@ -23,8 +23,6 @@ import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -45,6 +43,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.meridian.app.core.designsystem.CsColors
 import com.meridian.app.core.designsystem.CsPrimaryButton
+import com.meridian.app.core.designsystem.CsToast
 import com.meridian.app.core.designsystem.CsSegmented
 import com.meridian.app.core.designsystem.CsTextField
 import com.meridian.app.core.designsystem.CsTextButton
@@ -65,7 +64,6 @@ fun AuthScreen(onLoggedIn: () -> Unit) {
         },
     )
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(state.navigateToMarket) {
         if (state.navigateToMarket) {
@@ -73,16 +71,15 @@ fun AuthScreen(onLoggedIn: () -> Unit) {
             onLoggedIn()
         }
     }
-    LaunchedEffect(state.message) {
-        state.message?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.consumeMessage()
-        }
-    }
 
     Scaffold(
         containerColor = CsColors.Background,
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = {
+            CsToast(
+                message = state.message,
+                onDismiss = viewModel::consumeMessage,
+            )
+        },
     ) { padding ->
         Column(
             modifier = Modifier

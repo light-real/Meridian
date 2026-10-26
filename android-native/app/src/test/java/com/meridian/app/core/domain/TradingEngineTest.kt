@@ -297,6 +297,106 @@ class TradingEngineTest {
     }
 
     @Test
+    fun `cross margin reduces the cash available to isolated orders`() {
+        val cross = success(
+            TradingEngine.open(
+                account(),
+                openRequest(notional = "1000", leverage = 10)
+                    .copy(marginMode = MarginMode.CROSS),
+                BigDecimal("100"),
+            ),
+        )
+
+        // 现金 9999.5，全仓占用 100，还剩 9899.5；1x 开 9900 名义要 9904.95，不够
+        val isolated = TradingEngine.open(
+            cross.account,
+            openRequest(notional = "9900", leverage = 1),
+            BigDecimal("100"),
+        )
+
+        assertTrue(isolated is TradeOutcome.Rejected)
+        assertEquals(
+            TradeError.InsufficientBalance,
+            (isolated as TradeOutcome.Rejected).error,
+        )
+    }
+
+    @Test
+    fun `raising leverage releases isolated margin`() {
+        val opened = success(
+            TradingEngine.open(
+                account(),
+                openRequest(notional = "1000", leverage = 10),
+                BigDecimal("100"),
+            ),
+        )
+        val position = opened.account.positions.single()
+
+        val adjusted = TradingEngine.adjustLeverage(
+            account = opened.account,
+            positionId = position.id,
+            leverage = 20,
+            markPrice = BigDecimal("100"),
+        )
+
+        val updated = adjusted.account!!
+        assertDecimal("9949.5", updated.cash)
+        val changed = updated.positions.single()
+        assertEquals(20, changed.leverage)
+        assertDecimal("50", changed.margin)
+        assertDecimal("10", changed.quantity)
+    }
+
+    @Test
+    fun `lowering leverage is rejected when cash cannot cover the extra margin`() {
+        val opened = success(
+            TradingEngine.open(
+                account(),
+                openRequest(notional = "20000", leverage = 10),
+                BigDecimal("100"),
+            ),
+        )
+        val position = opened.account.positions.single()
+
+        val adjusted = TradingEngine.adjustLeverage(
+            account = opened.account,
+            positionId = position.id,
+            leverage = 1,
+            markPrice = BigDecimal("100"),
+        )
+
+        assertEquals(TradeError.InsufficientBalance, adjusted.error)
+        assertNull(adjusted.account)
+        assertEquals(10, position.leverage)
+    }
+
+    @Test
+    fun `cross leverage change only adjusts occupied margin`() {
+        val opened = success(
+            TradingEngine.open(
+                account(),
+                openRequest(notional = "1000", leverage = 10)
+                    .copy(marginMode = MarginMode.CROSS),
+                BigDecimal("100"),
+            ),
+        )
+        val position = opened.account.positions.single()
+
+        val adjusted = TradingEngine.adjustLeverage(
+            account = opened.account,
+            positionId = position.id,
+            leverage = 100,
+            markPrice = BigDecimal("100"),
+        )
+
+        val updated = adjusted.account!!
+        assertDecimal("9999.5", updated.cash)
+        val changed = updated.positions.single()
+        assertEquals(100, changed.leverage)
+        assertDecimal("10", changed.margin)
+    }
+
+    @Test
     fun `cross close returns only pnl`() {
         val opened = success(
             TradingEngine.open(

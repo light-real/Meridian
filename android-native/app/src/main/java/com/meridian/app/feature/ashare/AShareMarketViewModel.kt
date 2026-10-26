@@ -22,7 +22,7 @@ data class AShareMarketUiState(
     val favoriteStocks: List<AShareStock> = emptyList(),
     val searchResults: List<AShareStock> = emptyList(),
     val favorites: List<String> = emptyList(),
-    val tab: Int = 1,
+    val tab: Int = 0,
     val display: List<AShareStock> = emptyList(),
     val query: String = "",
     val error: String? = null,

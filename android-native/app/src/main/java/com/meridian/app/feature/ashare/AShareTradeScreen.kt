@@ -24,8 +24,6 @@ import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -53,6 +51,7 @@ import com.meridian.app.core.designsystem.CsNumericTextStyle
 import com.meridian.app.core.designsystem.CsPrimaryButton
 import com.meridian.app.core.designsystem.CsSegmented
 import com.meridian.app.core.designsystem.CsStatRow
+import com.meridian.app.core.designsystem.CsToast
 import com.meridian.app.core.designsystem.CsTopBar
 import com.meridian.app.core.domain.money
 import com.meridian.app.core.domain.price
@@ -83,18 +82,16 @@ fun AShareTradeScreen(
         },
     )
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val snackbarHostState = remember { SnackbarHostState() }
 
-    LaunchedEffect(state.notice) {
-        state.notice?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.consumeNotice()
-        }
-    }
 
     Scaffold(
         containerColor = CsColors.Background,
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = {
+            CsToast(
+                message = state.notice,
+                onDismiss = viewModel::consumeNotice,
+            )
+        },
         topBar = {
             CsTopBar(
                 title = state.stock?.name ?: symbol,

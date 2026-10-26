@@ -243,6 +243,29 @@ class AccountRepository(
     }
 
     /** 调整逐仓保证金：delta 为正追加，为负减少。 */
+    suspend fun adjustLeverage(
+        positionId: String,
+        leverage: Int,
+        markPrice: BigDecimal,
+    ): TradeError? {
+        var error: TradeError? = null
+        operationMutex.withLock {
+            database.withTransaction {
+                val current = readAccount()
+                val result = TradingEngine.adjustLeverage(current, positionId, leverage, markPrice)
+                val updated = result.account
+                if (updated == null) {
+                    error = result.error
+                    return@withTransaction
+                }
+                dao.upsertAccount(updated.toEntity())
+                dao.replacePositions(updated.positions.map { it.toEntity() })
+            }
+        }
+        if (error == null) syncAsync()
+        return error
+    }
+
     suspend fun adjustMargin(
         positionId: String,
         delta: BigDecimal,

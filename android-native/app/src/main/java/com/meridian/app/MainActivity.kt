@@ -8,12 +8,14 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.meridian.app.core.designsystem.MeridianTheme
+import com.meridian.app.core.data.settings.ThemeMode
 import com.meridian.app.navigation.AppRoot
 import com.meridian.app.ui.LocalAppContainer
 
@@ -34,7 +36,17 @@ class MainActivity : ComponentActivity() {
             CompositionLocalProvider(LocalAppContainer provides container) {
                 val colorConvention by container.settingsStore.colorConvention
                     .collectAsStateWithLifecycle()
-                MeridianTheme(priceColorConvention = colorConvention) {
+                val themeMode by container.settingsStore.themeMode
+                    .collectAsStateWithLifecycle()
+                val darkTheme = when (themeMode) {
+                    ThemeMode.SYSTEM -> isSystemInDarkTheme()
+                    ThemeMode.LIGHT -> false
+                    ThemeMode.DARK -> true
+                }
+                MeridianTheme(
+                    darkTheme = darkTheme,
+                    priceColorConvention = colorConvention,
+                ) {
                     AppRoot()
                 }
             }

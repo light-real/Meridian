@@ -204,9 +204,17 @@ data class Account(
         marks[position.symbol] ?: position.entryPrice
 
     fun totalMargin(): BigDecimal =
+        positions.fold(BigDecimal.ZERO) { acc, p -> acc.add(p.margin) }
+
+    /** 全仓占用的保证金（不直接从现金扣，但占用额度）。 */
+    fun crossMargin(): BigDecimal =
         positions
-            .filter { it.marginMode == MarginMode.ISOLATED }
+            .filter { it.isCross }
             .fold(BigDecimal.ZERO) { acc, p -> acc.add(p.margin) }
+
+    /** 可用于新开仓的现金：扣掉全仓已占用保证金。 */
+    fun availableCash(): BigDecimal =
+        cash.subtract(crossMargin()).max(BigDecimal.ZERO)
 
     fun totalUnrealizedPnl(marks: Map<String, BigDecimal>): BigDecimal =
         positions.fold(BigDecimal.ZERO) { acc, p ->

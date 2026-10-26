@@ -22,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.CloudUpload
+import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.Palette
@@ -30,8 +31,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -48,17 +47,17 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.meridian.app.BuildConfig
 import com.meridian.app.core.data.settings.PriceColorConvention
+import com.meridian.app.core.data.settings.ThemeMode
 import com.meridian.app.core.designsystem.CsCard
 import com.meridian.app.core.designsystem.CsColors
 import com.meridian.app.core.designsystem.CsDivider
+import com.meridian.app.core.designsystem.CsToast
 import com.meridian.app.core.designsystem.CsTopBar
 import com.meridian.app.core.domain.formatTime
 import com.meridian.app.core.domain.money
@@ -87,32 +86,32 @@ fun ProfileScreen() {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val colorConvention by container.settingsStore.colorConvention.collectAsStateWithLifecycle()
     val monitorEnabled by container.settingsStore.monitorEnabled.collectAsStateWithLifecycle()
-    val snackbarHostState = remember { SnackbarHostState() }
+    val themeMode by container.settingsStore.themeMode.collectAsStateWithLifecycle()
     var showResetDialog by remember { mutableStateOf(false) }
     var showResetAShareDialog by remember { mutableStateOf(false) }
     var showAboutDialog by remember { mutableStateOf(false) }
     var showColorDialog by remember { mutableStateOf(false) }
-
-    LaunchedEffect(state.message) {
-        state.message?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.consumeMessage()
-        }
-    }
+    var showThemeDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         containerColor = CsColors.Background,
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = {
+            CsToast(
+                message = state.message,
+                onDismiss = viewModel::consumeMessage,
+            )
+        },
         topBar = { CsTopBar(title = "我的") },
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalArrangement = Arrangement.spacedBy(18.dp),
-        ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(18.dp),
+            ) {
             ProfileContractCard(state = state)
 
             ProfileAShareCard(state = state)
@@ -149,6 +148,15 @@ fun ProfileScreen() {
                         iconTint = CsColors.Warning,
                         iconBackground = CsColors.WarningSoft,
                         onClick = { showColorDialog = true },
+                    )
+                    CsDivider(modifier = Modifier.padding(start = 62.dp))
+                    SettingRow(
+                        icon = Icons.Outlined.DarkMode,
+                        title = "主题",
+                        subtitle = "当前：" + themeMode.label,
+                        iconTint = CsColors.Primary,
+                        iconBackground = CsColors.Primary.copy(alpha = 0.12f),
+                        onClick = { showThemeDialog = true },
                     )
                     CsDivider(modifier = Modifier.padding(start = 62.dp))
                     SettingRow(
@@ -191,7 +199,6 @@ fun ProfileScreen() {
                     SettingRow(
                         icon = Icons.Outlined.Info,
                         title = "关于 Meridian",
-                        subtitle = "版本 ${BuildConfig.VERSION_NAME}",
                         iconTint = CsColors.TextSecondary,
                         iconBackground = CsColors.SurfaceVariant,
                         onClick = { showAboutDialog = true },
@@ -199,14 +206,7 @@ fun ProfileScreen() {
                 }
             }
 
-            Text(
-                text = "Meridian · v${BuildConfig.VERSION_NAME}",
-                modifier = Modifier.fillMaxWidth(),
-                textAlign = TextAlign.Center,
-                color = CsColors.TextFaint,
-                fontSize = 10.sp,
-            )
-            Spacer(modifier = Modifier.height(4.dp))
+            }
         }
     }
 
@@ -251,6 +251,62 @@ fun ProfileScreen() {
             },
             confirmButton = {
                 TextButton(onClick = { showColorDialog = false }) {
+                    Text("关闭", color = CsColors.TextMuted)
+                }
+            },
+            containerColor = CsColors.SurfaceElevated,
+            titleContentColor = CsColors.TextPrimary,
+            textContentColor = CsColors.TextSecondary,
+        )
+    }
+
+    if (showThemeDialog) {
+        AlertDialog(
+            onDismissRequest = { showThemeDialog = false },
+            shape = RoundedCornerShape(20.dp),
+            title = { Text("主题") },
+            text = {
+                Column {
+                    Text(
+                        text = "默认跟随手机系统，也可以固定亮色或暗色。",
+                        color = CsColors.TextSecondary,
+                        fontSize = 13.sp,
+                        lineHeight = 19.sp,
+                    )
+                    Spacer(modifier = Modifier.height(14.dp))
+                    ThemeOption(
+                        title = "跟随系统",
+                        hint = "跟随手机的深色设置",
+                        selected = themeMode == ThemeMode.SYSTEM,
+                        onClick = {
+                            container.settingsStore.setThemeMode(ThemeMode.SYSTEM)
+                            showThemeDialog = false
+                        },
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    ThemeOption(
+                        title = "亮色",
+                        hint = "始终使用浅色",
+                        selected = themeMode == ThemeMode.LIGHT,
+                        onClick = {
+                            container.settingsStore.setThemeMode(ThemeMode.LIGHT)
+                            showThemeDialog = false
+                        },
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    ThemeOption(
+                        title = "暗色",
+                        hint = "始终使用深色",
+                        selected = themeMode == ThemeMode.DARK,
+                        onClick = {
+                            container.settingsStore.setThemeMode(ThemeMode.DARK)
+                            showThemeDialog = false
+                        },
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showThemeDialog = false }) {
                     Text("关闭", color = CsColors.TextMuted)
                 }
             },
@@ -325,8 +381,6 @@ fun ProfileScreen() {
             title = { Text("Meridian") },
             text = {
                 Column {
-                    Text("版本 ${BuildConfig.VERSION_NAME}")
-                    Spacer(modifier = Modifier.height(8.dp))
                     Text("USDT 永续合约 + A 股现货交易 App，支持做多/做空、杠杆、强平、止盈止损、A 股 T+1。所有数据仅保存在本机。")
                 }
             },
@@ -445,7 +499,7 @@ private fun ProfileContractCard(state: ProfileUiState) {
                 HeroDivider()
                 HeroMetric(
                     label = "可用余额",
-                    value = account.cash.money(2),
+                    value = account.availableCash().money(2),
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -675,6 +729,49 @@ private fun SettingRow(
                 contentDescription = null,
                 tint = CsColors.TextFaint,
                 modifier = Modifier.size(16.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun ThemeOption(
+    title: String,
+    hint: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(
+                if (selected) {
+                    CsColors.Primary.copy(alpha = 0.08f)
+                } else {
+                    Color.Transparent
+                },
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                color = CsColors.TextPrimary,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(text = hint, color = CsColors.TextMuted, fontSize = 11.sp)
+        }
+        if (selected) {
+            Icon(
+                imageVector = Icons.Outlined.CheckCircle,
+                contentDescription = null,
+                tint = CsColors.Primary,
+                modifier = Modifier.size(18.dp),
             )
         }
     }

@@ -27,8 +27,6 @@ import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -42,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
@@ -52,12 +51,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.meridian.app.core.designsystem.ChangeBadge
 import com.meridian.app.core.designsystem.CoinAvatar
+import com.meridian.app.core.designsystem.CsChip
 import com.meridian.app.core.designsystem.CsColors
 import com.meridian.app.core.designsystem.CsEmptyState
 import com.meridian.app.core.designsystem.CsErrorState
 import com.meridian.app.core.designsystem.CsLoading
-import com.meridian.app.core.designsystem.CsSegmented
 import com.meridian.app.core.designsystem.CsTextField
+import com.meridian.app.core.designsystem.CsToast
 import com.meridian.app.core.designsystem.CsTopBar
 import com.meridian.app.core.designsystem.FlashPriceText
 import com.meridian.app.core.domain.money
@@ -95,26 +95,25 @@ fun MarketScreen(
     )
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val aShareState by aShareViewModel.uiState.collectAsStateWithLifecycle()
-    val snackbarHostState = remember { SnackbarHostState() }
     var marketTab by rememberSaveable { mutableStateOf(0) }
     var aShareSearchVisible by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(marketTab) {
         if (marketTab == 1) {
+            // 每次进 A 股都先落在自选
+            aShareViewModel.setTab(0)
             aShareViewModel.loadIfNeeded()
-        }
-    }
-
-    LaunchedEffect(state.notice) {
-        state.notice?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.consumeNotice()
         }
     }
 
     Scaffold(
         containerColor = CsColors.Background,
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = {
+            CsToast(
+                message = state.notice,
+                onDismiss = viewModel::consumeNotice,
+            )
+        },
         topBar = {
             CsTopBar(
                 title = "行情",
@@ -167,26 +166,47 @@ fun MarketScreen(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             item {
-                CsSegmented(
-                    options = listOf("合约", "A 股"),
-                    selectedIndex = marketTab,
-                    onSelect = { marketTab = it },
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    MarketTab("合约", selected = marketTab == 0) { marketTab = 0 }
+                    Spacer(modifier = Modifier.width(18.dp))
+                    MarketTab("A 股", selected = marketTab == 1) { marketTab = 1 }
+                    Spacer(modifier = Modifier.weight(1f))
+
+                    if (marketTab == 0) {
+                        CsChip(
+                            text = "自选 ${state.favorites.size}",
+                            selected = state.tab == 0,
+                            onClick = { viewModel.switchTab(0) },
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        CsChip(
+                            text = "全部 ${state.symbols.size}",
+                            selected = state.tab == 1,
+                            onClick = { viewModel.switchTab(1) },
+                        )
+                    } else if (aShareState.query.isBlank()) {
+                        CsChip(
+                            text = "自选 ${aShareState.favorites.size}",
+                            selected = aShareState.tab == 0,
+                            onClick = { aShareViewModel.setTab(0) },
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        CsChip(
+                            text = "涨幅榜",
+                            selected = aShareState.tab == 1,
+                            onClick = { aShareViewModel.setTab(1) },
+                        )
+                    }
+                }
             }
 
             if (marketTab == 0) {
                 item { MarketHero(state) }
-
-                item {
-                    CsSegmented(
-                        options = listOf(
-                            "自选 (${state.favorites.size})",
-                            "全部 (${state.symbols.size})",
-                        ),
-                        selectedIndex = state.tab,
-                        onSelect = viewModel::switchTab,
-                    )
-                }
 
                 if (state.searchVisible) {
                     item {
@@ -239,23 +259,9 @@ fun MarketScreen(
                 item {
                     AShareStatusRow(
                         sessionOpen = aShareState.sessionOpen,
-                        total = aShareState.stocks.size,
                         query = aShareState.query,
                         searching = aShareState.searching,
                     )
-                }
-
-                if (aShareState.query.isBlank()) {
-                    item {
-                        CsSegmented(
-                            options = listOf(
-                                "自选 (${aShareState.favorites.size})",
-                                "涨幅榜",
-                            ),
-                            selectedIndex = aShareState.tab,
-                            onSelect = aShareViewModel::setTab,
-                        )
-                    }
                 }
 
                 if (aShareSearchVisible) {
@@ -318,9 +324,37 @@ fun MarketScreen(
 }
 
 @Composable
+private fun MarketTab(
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 2.dp, vertical = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            text = text,
+            color = if (selected) CsColors.TextPrimary else CsColors.TextMuted,
+            fontSize = if (selected) 19.sp else 17.sp,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+        )
+        Spacer(modifier = Modifier.height(5.dp))
+        Box(
+            modifier = Modifier
+                .width(if (selected) 18.dp else 0.dp)
+                .height(2.dp)
+                .background(if (selected) CsColors.Primary else Color.Transparent),
+        )
+    }
+}
+
+@Composable
 private fun AShareStatusRow(
     sessionOpen: Boolean,
-    total: Int,
     query: String,
     searching: Boolean,
 ) {
@@ -334,7 +368,7 @@ private fun AShareStatusRow(
             text = when {
                 query.isNotBlank() && searching -> "A 股 · 搜索中…"
                 query.isNotBlank() -> "A 股 · 搜索结果"
-                else -> "A 股 · T+1 · 涨幅榜 $total"
+                else -> "A 股 · T+1"
             },
             color = CsColors.TextMuted,
             fontSize = 11.sp,

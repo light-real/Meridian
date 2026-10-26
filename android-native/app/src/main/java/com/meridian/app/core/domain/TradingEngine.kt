@@ -74,13 +74,10 @@ object TradingEngine {
         // 开仓能力检查：保证金 + 手续费要够。
         // 全仓不锁保证金，但已经开出去的全仓仓位仍然占用额度，
         // 否则同一笔余额可以被反复当作保证金，实际杠杆会超过设定值。
-        val crossUsed = if (isCross) {
-            account.positions
-                .filter { it.marginMode == MarginMode.CROSS && it.symbol != request.symbol }
-                .fold(BigDecimal.ZERO) { acc, position -> acc.add(position.margin) }
-        } else {
-            BigDecimal.ZERO
-        }
+        // 全仓保证金不直接从现金里扣，但仍然占用额度；逐仓下单时也要扣掉
+        val crossUsed = account.positions
+            .filter { it.marginMode == MarginMode.CROSS }
+            .fold(BigDecimal.ZERO) { acc, position -> acc.add(position.margin) }
         val available = account.cash.subtract(crossUsed)
         val requiredCash = margin.add(fee)
         if (available < requiredCash) {
@@ -339,6 +336,91 @@ object TradingEngine {
                 trades = liquidationTrades + account.trades,
             ),
             liquidated = liquidated,
+        )
+    }
+
+    /**
+     * 调整已有仓位的杠杆：仓位数量不动，只按「开仓名义价值 / 新杠杆」重算保证金。
+     *
+     * - 调高杠杆：保证金减少，差额退回可用
+     * - 调低杠杆：保证金增加，从可用补；不够直接拒绝
+     */
+    fun adjustLeverage(
+        account: Account,
+        positionId: String,
+        leverage: Int,
+        markPrice: BigDecimal,
+    ): MarginAdjustment {
+        if (leverage !in 1..MAX_LEVERAGE || markPrice.signum() <= 0) {
+            return MarginAdjustment(error = TradeError.InvalidLeverage)
+        }
+        val position = account.positions.firstOrNull { it.id == positionId }
+            ?: return MarginAdjustment(error = TradeError.PositionNotFound)
+        if (leverage == position.leverage) {
+            return MarginAdjustment(account = account)
+        }
+
+        val notional = position.entryPrice.multiply(position.quantity)
+            .setScale(MONEY_SCALE, RoundingMode.HALF_UP)
+        val newMargin = notional.divide(BigDecimal(leverage), MONEY_SCALE, RoundingMode.HALF_UP)
+        if (newMargin.signum() <= 0) {
+            return MarginAdjustment(error = TradeError.MarginTooLow)
+        }
+
+        val delta = newMargin.subtract(position.margin)
+        val otherCross = account.positions
+            .filter { it.id != position.id && it.isCross }
+            .fold(BigDecimal.ZERO) { acc, other -> acc.add(other.margin) }
+        val available = account.cash.subtract(otherCross)
+
+        if (delta.signum() > 0) {
+            // 全仓没有从现金里扣过保证金，补的是完整占用；逐仓只补差额
+            val required = if (position.isCross) newMargin else delta
+            if (required > available) {
+                return MarginAdjustment(error = TradeError.InsufficientBalance)
+            }
+        }
+
+        if (!position.isCross && newMargin <= minimumMargin(position, markPrice)) {
+            return MarginAdjustment(error = TradeError.MarginTooLow)
+        }
+
+        val newLiquidation = if (position.isCross) {
+            BigDecimal.ZERO
+        } else {
+            liquidationPriceFor(
+                entryPrice = position.entryPrice,
+                side = position.side,
+                quantity = position.quantity,
+                margin = newMargin,
+            )
+        }
+        if (!position.isCross && newLiquidation.signum() > 0) {
+            val crossed = when (position.side) {
+                Side.LONG -> newLiquidation >= markPrice
+                Side.SHORT -> newLiquidation <= markPrice
+            }
+            if (crossed) return MarginAdjustment(error = TradeError.MarginTooLow)
+        }
+
+        val updatedPosition = position.copy(
+            leverage = leverage,
+            margin = newMargin,
+            liquidationPrice = newLiquidation,
+        )
+        val cash = if (position.isCross) {
+            account.cash
+        } else {
+            account.cash.subtract(delta)
+        }
+
+        return MarginAdjustment(
+            account = account.copy(
+                cash = cash.setScale(MONEY_SCALE, RoundingMode.HALF_UP),
+                positions = account.positions.map {
+                    if (it.id == positionId) updatedPosition else it
+                },
+            ),
         )
     }
 

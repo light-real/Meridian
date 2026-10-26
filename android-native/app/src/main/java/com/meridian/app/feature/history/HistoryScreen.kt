@@ -1,5 +1,19 @@
 package com.meridian.app.feature.history
 
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.material3.Icon
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.Icons
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -74,46 +88,38 @@ fun HistoryScreen(onBack: (() -> Unit)? = null) {
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             item {
-                CsSegmented(
-                    options = listOf("全部", "合约", "A 股"),
-                    selectedIndex = when (state.marketFilter) {
-                        HistoryMarketFilter.ALL -> 0
-                        HistoryMarketFilter.CONTRACT -> 1
-                        HistoryMarketFilter.A_SHARE -> 2
-                    },
-                    onSelect = { index ->
-                        viewModel.setMarketFilter(
-                            when (index) {
-                                1 -> HistoryMarketFilter.CONTRACT
-                                2 -> HistoryMarketFilter.A_SHARE
-                                else -> HistoryMarketFilter.ALL
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(modifier = Modifier.weight(1f)) {
+                        CsSegmented(
+                            options = listOf("全部", "合约", "A 股"),
+                            selectedIndex = when (state.marketFilter) {
+                                HistoryMarketFilter.ALL -> 0
+                                HistoryMarketFilter.CONTRACT -> 1
+                                HistoryMarketFilter.A_SHARE -> 2
+                            },
+                            onSelect = { index ->
+                                viewModel.setMarketFilter(
+                                    when (index) {
+                                        1 -> HistoryMarketFilter.CONTRACT
+                                        2 -> HistoryMarketFilter.A_SHARE
+                                        else -> HistoryMarketFilter.ALL
+                                    },
+                                )
                             },
                         )
-                    },
-                )
-            }
-
-            if (state.marketFilter != HistoryMarketFilter.A_SHARE) {
-                item {
-                    CsSegmented(
-                        options = listOf("全部", "开仓", "平仓", "资金费"),
-                        selectedIndex = when (state.filter) {
-                            TradeTypeFilter.ALL -> 0
-                            TradeTypeFilter.OPEN -> 1
-                            TradeTypeFilter.CLOSE -> 2
-                            TradeTypeFilter.FUNDING -> 3
-                        },
-                        onSelect = { index ->
-                            viewModel.setFilter(
-                                when (index) {
-                                    1 -> TradeTypeFilter.OPEN
-                                    2 -> TradeTypeFilter.CLOSE
-                                    3 -> TradeTypeFilter.FUNDING
-                                    else -> TradeTypeFilter.ALL
-                                },
-                            )
-                        },
-                    )
+                    }
+                    if (state.marketFilter != HistoryMarketFilter.A_SHARE) {
+                        TypeFilterButton(
+                            current = state.filter,
+                            onSelect = viewModel::setFilter,
+                        )
+                    }
                 }
             }
 
@@ -153,6 +159,101 @@ fun HistoryScreen(onBack: (() -> Unit)? = null) {
                             }
                         }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TypeFilterButton(
+    current: TradeTypeFilter,
+    onSelect: (TradeTypeFilter) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val active = current != TradeTypeFilter.ALL
+    Box {
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(
+                    if (active) {
+                        CsColors.Primary.copy(alpha = 0.12f)
+                    } else {
+                        CsColors.SurfaceVariant
+                    },
+                )
+                .border(
+                    width = 1.dp,
+                    color = if (active) CsColors.Primary.copy(alpha = 0.35f) else CsColors.Border,
+                    shape = RoundedCornerShape(12.dp),
+                )
+                .clickable { expanded = true },
+            contentAlignment = Alignment.Center,
+        ) {
+            val label = when (current) {
+                TradeTypeFilter.ALL -> null
+                TradeTypeFilter.OPEN -> "开仓"
+                TradeTypeFilter.CLOSE -> "平仓"
+                TradeTypeFilter.FUNDING -> "资金费"
+            }
+            if (label == null) {
+                Icon(
+                    imageVector = Icons.Outlined.Tune,
+                    contentDescription = "筛选交易类型",
+                    tint = CsColors.TextSecondary,
+                    modifier = Modifier.size(20.dp),
+                )
+            } else {
+                Text(
+                    text = label,
+                    color = CsColors.Primary,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+            if (active) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = 8.dp, end = 8.dp)
+                        .size(6.dp)
+                        .clip(CircleShape)
+                        .background(CsColors.Primary),
+                )
+            }
+        }
+
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            listOf(
+                TradeTypeFilter.ALL to "全部类型",
+                TradeTypeFilter.OPEN to "开仓",
+                TradeTypeFilter.CLOSE to "平仓",
+                TradeTypeFilter.FUNDING to "资金费",
+            ).forEach { (filter, label) ->
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = label,
+                            color = if (current == filter) CsColors.Primary else CsColors.TextPrimary,
+                            fontSize = 13.sp,
+                        )
+                    },
+                    trailingIcon = {
+                        if (current == filter) {
+                            Icon(
+                                imageVector = Icons.Outlined.Check,
+                                contentDescription = null,
+                                tint = CsColors.Primary,
+                                modifier = Modifier.size(16.dp),
+                            )
+                        }
+                    },
+                    onClick = {
+                        expanded = false
+                        onSelect(filter)
+                    },
+                )
             }
         }
     }

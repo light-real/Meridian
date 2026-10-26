@@ -62,13 +62,10 @@ object OrderCalculator {
         val fee = executedNotional.multiply(TradingEngine.FEE_RATE).setScale(8, RoundingMode.HALF_UP)
         val requiredCash = margin.add(fee)
         // 全仓下已有仓位的保证金也占额度，不能重复使用同一笔余额
-        val crossUsed = if (marginMode == MarginMode.CROSS) {
-            account.positions
-                .filter { it.marginMode == MarginMode.CROSS }
-                .fold(BigDecimal.ZERO) { acc, position -> acc.add(position.margin) }
-        } else {
-            BigDecimal.ZERO
-        }
+        // 全仓保证金不扣现金但占额度，逐仓下单同样要扣
+        val crossUsed = account.positions
+            .filter { it.marginMode == MarginMode.CROSS }
+            .fold(BigDecimal.ZERO) { acc, position -> acc.add(position.margin) }
         val available = account.cash.subtract(crossUsed)
         // 全仓没有单仓强平价，交给账户权益统一判断
         val liquidationPrice = if (marginMode == MarginMode.CROSS) {
@@ -103,13 +100,9 @@ object OrderCalculator {
         marginMode: MarginMode = MarginMode.ISOLATED,
     ): BigDecimal {
         // 全仓下已有仓位的保证金占用额度，不能拿整个余额再算一遍
-        val used = if (marginMode == MarginMode.CROSS) {
-            account.positions
-                .filter { it.marginMode == MarginMode.CROSS }
-                .fold(BigDecimal.ZERO) { acc, position -> acc.add(position.margin) }
-        } else {
-            BigDecimal.ZERO
-        }
+        val used = account.positions
+            .filter { it.marginMode == MarginMode.CROSS }
+            .fold(BigDecimal.ZERO) { acc, position -> acc.add(position.margin) }
         val available = account.cash.subtract(used).max(BigDecimal.ZERO)
         val maxNotional = TradingEngine.maxNotional(available, leverage)
         val targetNotional = maxNotional.multiply(percent)

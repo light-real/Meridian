@@ -54,7 +54,7 @@ data class TradeUiState(
     val account: Account = Account(AppConstants.INITIAL_CASH, AppConstants.INITIAL_CASH),
     val side: Side = Side.LONG,
     val leverage: Int = AppConstants.DEFAULT_LEVERAGE,
-    val marginMode: MarginMode = MarginMode.ISOLATED,
+    val marginMode: MarginMode = MarginMode.CROSS,
     val amountInput: String = "",
     val orderType: OrderType = OrderType.MARKET,
     val limitPriceInput: String = "",
@@ -199,9 +199,44 @@ class TradeViewModel(
 
     fun setLeverage(leverage: Int) {
         val value = leverage.coerceIn(1, AppConstants.MAX_LEVERAGE)
+        val state = _uiState.value
+        val position = state.account.positions.firstOrNull { it.symbol == state.symbol }
+        val markPrice = state.ticker?.lastPrice
+            ?: marketDataHub.marks.value[state.symbol]
+        if (position == null || markPrice == null) {
+            applyLeverage(value)
+            return
+        }
+        viewModelScope.launch {
+            val error = accountRepository.adjustLeverage(
+                positionId = position.id,
+                leverage = value,
+                markPrice = markPrice,
+            )
+            if (error == null) {
+                applyLeverage(value)
+                _uiState.update {
+                    it.copy(notice = "杠杆已调整为 ${value}x，保证金已重算")
+                }
+            } else {
+                // 调整失败时保持原杠杆
+                _uiState.update { it.copy(notice = leverageErrorMessage(error)) }
+            }
+        }
+    }
+
+    private fun applyLeverage(value: Int) {
         settingsStore.lastLeverage = value
         _uiState.update { it.copy(leverage = value) }
         recalcOrder()
+    }
+
+    private fun leverageErrorMessage(error: TradeError): String = when (error) {
+        TradeError.InsufficientBalance -> "可用不足，无法降低杠杆；原杠杆保持不变"
+        TradeError.MarginTooLow -> "新杠杆下保证金过低，可能立即强平；原杠杆保持不变"
+        TradeError.InvalidLeverage -> "杠杆必须在 1-150 之间"
+        TradeError.PositionNotFound -> "持仓不存在"
+        else -> "调整杠杆失败"
     }
 
     fun setMarginMode(mode: MarginMode) {

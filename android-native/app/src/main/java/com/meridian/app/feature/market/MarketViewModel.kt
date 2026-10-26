@@ -11,6 +11,8 @@ import com.meridian.app.core.model.Account
 import com.meridian.app.core.model.SymbolInfo
 import com.meridian.app.core.model.Ticker
 import java.math.BigDecimal
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -49,6 +51,7 @@ class MarketViewModel(
     val uiState: StateFlow<MarketUiState> = _uiState.asStateFlow()
 
     private val symbolsFlow = MutableStateFlow<List<SymbolInfo>>(emptyList())
+    private var searchJob: Job? = null
 
     init {
         viewModelScope.launch {
@@ -110,6 +113,14 @@ class MarketViewModel(
     fun onQueryChange(query: String) {
         _uiState.update { it.copy(query = query) }
         recompute()
+        searchJob?.cancel()
+        val trimmed = query.trim()
+        if (trimmed.isEmpty()) return
+        searchJob = viewModelScope.launch {
+            delay(300)
+            val matches = _uiState.value.display.take(20).map { it.info.symbol }
+            if (matches.isNotEmpty()) refreshTickers(matches)
+        }
     }
 
     fun toggleSearch() {
@@ -147,7 +158,10 @@ class MarketViewModel(
     private fun recompute() {
         val state = _uiState.value
         val query = state.query.trim().uppercase()
-        val source = if (state.tab == 0) {
+        // 搜索始终在全部交易对里找，不受自选 / 全部 tab 限制
+        val source = if (query.isNotEmpty()) {
+            state.symbols
+        } else if (state.tab == 0) {
             state.symbols.filter { state.favorites.contains(it.symbol) }
         } else {
             state.symbols

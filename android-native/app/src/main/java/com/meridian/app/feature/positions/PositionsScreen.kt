@@ -18,8 +18,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -48,6 +46,7 @@ import com.meridian.app.core.designsystem.CsEmptyState
 import com.meridian.app.core.designsystem.CsLoading
 import com.meridian.app.core.designsystem.CsSegmented
 import com.meridian.app.core.designsystem.CsStatRow
+import com.meridian.app.core.designsystem.CsToast
 import com.meridian.app.core.designsystem.CsTopBar
 import com.meridian.app.core.designsystem.LabelValue
 import com.meridian.app.core.designsystem.SideBadge
@@ -89,19 +88,17 @@ fun PositionsScreen(
         },
     )
     val aShareState by aShareViewModel.uiState.collectAsStateWithLifecycle()
-    val snackbarHostState = remember { SnackbarHostState() }
     var filter by rememberSaveable { mutableStateOf(0) }
 
-    LaunchedEffect(state.notice) {
-        state.notice?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.consumeNotice()
-        }
-    }
 
     Scaffold(
         containerColor = CsColors.Background,
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = {
+            CsToast(
+                message = state.notice,
+                onDismiss = viewModel::consumeNotice,
+            )
+        },
         topBar = { CsTopBar(title = "持仓") },
     ) { padding ->
         LazyColumn(
